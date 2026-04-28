@@ -4,6 +4,7 @@ mod data;
 mod hardware;
 mod slint_ui;
 
+use crate::application::global_state::GLOBAL_STATE;
 use crate::application::settings::SETTINGS;
 use crate::can::can_backend::{CanBackend, CanFrame, CanInterface};
 use crate::can::emulators::wrx_2018_emulator;
@@ -17,8 +18,8 @@ use crate::slint_ui::backend::{
     settings_bridge, widget_container,
 };
 
-use clap::ArgMatches;
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, Pid, ProcessRefreshKind, RefreshKind, System};
+use tokio::signal;
 use tokio::sync::Notify;
 use tokio::time::{self, Duration};
 
@@ -29,89 +30,10 @@ use std::sync::{Arc, LazyLock};
 
 slint::include_modules!();
 
-const VCAN_IF_NAME: &str = "vcan0";
-const CAN_IF_NAME: &str = "can0";
-
-#[cfg(target_os = "linux")]
-const DEFAULT_SL_DEV: &str = "/dev/ttyACM0";
-#[cfg(target_vendor = "apple")]
-const DEFAULT_SL_DEV: &str = "/dev/tty.usbmodem101";
-
 pub static SHUTDOWN_SIGNAL: LazyLock<Notify> = LazyLock::new(|| Notify::new());
 pub static SHUTDOWN_FINISHED: LazyLock<Notify> = LazyLock::new(|| Notify::new());
-pub static BIN_ARGS: LazyLock<ArgMatches> = LazyLock::new(|| {
-    let conflicting_args = vec![
-        "fakedev",
-        "candev",
-        "sldev",
-        #[cfg(target_os = "linux")]
-        "virtual",
-    ];
-
-    clap::Command::new("").version(env!("CARGO_PKG_VERSION"))
-        .args([
-            #[cfg(target_os = "linux")]
-            clap::arg!(-v --virtual "Runs the application in virtual mode using socketcan vcan")
-                .required(false)
-                .conflicts_with_all(conflicting_args.iter().filter(|&x| x != &"virtual")),
-            clap::arg!(-f --fakedev "Runs the application in virtual mode using a fake can socket emulator")
-                .required(false)
-                .conflicts_with_all(conflicting_args.iter().filter(|&x| x != &"fakedev")),
-            clap::arg!(-c --candev <PATH> "Path to the desired CAN device to use")
-                .required(false)
-                .default_value(CAN_IF_NAME)
-                .conflicts_with_all(conflicting_args.iter().filter(|&x| x != &"candev")),
-            clap::arg!(-s --sldev <PATH> "Path to the desired serial CAN device to use")
-                .required(false)
-                .default_value(DEFAULT_SL_DEV)
-                .conflicts_with_all(conflicting_args.iter().filter(|&x| x != &"sldev")),
-            #[cfg(debug_assertions)]
-            clap::arg!(--cli "Enable internal cli")
-                .required(false),
-            #[cfg(debug_assertions)]
-            clap::arg!(--highlight "Enables UI highlights")
-                .required(false),
-            #[cfg(debug_assertions)]
-            clap::arg!(--no_overlay "Disables debug overlay")
-                .required(false),
-            ])
-        .get_matches()
-});
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let fake_dev = BIN_ARGS.get_flag("fakedev");
-    #[cfg(target_os = "linux")]
-    let virtual_cluster = BIN_ARGS.get_flag("virtual") || fake_dev;
-    #[cfg(not(target_os = "linux"))]
-    let virtual_cluster = fake_dev;
-
-    let selected_interface = if fake_dev {
-        CanInterface::Fake
-    } else if virtual_cluster {
-        #[cfg(target_os = "linux")]
-        {
-            CanInterface::VirtualSocketCan
-        }
-
-        #[cfg(not(target_os = "linux"))]
-        {
-            CanInterface::Fake
-        }
-    } else if BIN_ARGS.value_source("candev") == Some(clap::parser::ValueSource::CommandLine) {
-        CanInterface::SocketCan
-    } else if BIN_ARGS.value_source("sldev") == Some(clap::parser::ValueSource::CommandLine) {
-        CanInterface::SerialCan
-    } else {
-        #[cfg(feature = "apalis_imx8")]
-        {
-            CanInterface::SocketCan
-        }
-        #[cfg(not(feature = "apalis_imx8"))]
-        {
-            CanInterface::SerialCan
-        }
-    };
-
     let tokio_runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -120,31 +42,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let ui = entry::make_app()?;
 
-    let mut _created_interface = false;
-
-    let mut interface_path = match &selected_interface {
-        CanInterface::VirtualSocketCan | CanInterface::Fake => VCAN_IF_NAME,
-        CanInterface::SerialCan => {
-            if let Some(sldev) = BIN_ARGS.get_one::<String>("sldev") {
-                sldev.as_str()
-            } else {
-                DEFAULT_SL_DEV
-            }
-        }
-        CanInterface::SocketCan => {
-            if let Some(candev) = BIN_ARGS.get_one::<String>("candev") {
-                candev.as_str()
-            } else {
-                CAN_IF_NAME
-            }
-        }
-    };
-
-    let can_backend = match CanBackend::new(&selected_interface, interface_path) {
+    let can_backend = match CanBackend::new(
+        &GLOBAL_STATE.can.selected_interface.value(),
+        &GLOBAL_STATE.can.interface_path.value(),
+    ) {
         Ok(can_backend) => Some(can_backend),
         Err(e) => {
             eprintln!("Error in can backend: {e:?}");
-            interface_path = "err";
+            GLOBAL_STATE.can.interface_path.set_value("err".to_string());
             None
         }
     };
@@ -156,37 +61,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 unsafe { embedded_can::Id::from(embedded_can::StandardId::new_unchecked(0x7E0)) };
 
             // TESTING
-            let mut mux_context = MuxContext::default();
-            let mut queue = VecDeque::from(vec![
-                // CanFrame::new(
-                //     obd_id,
-                //     8,
-                //     &[
-                //         0x02,
-                //         OBDService::CurrentData.into(),
-                //         S1CurrentData::PIDs1.into(),
-                //     ],
-                // ),
-                // CanFrame::new(
-                //     obd_id,
-                //     8,
-                //     &[
-                //         0x02,
-                //         OBDService::VehicleInformation.into(),
-                //         S9VehicleInformation::PIDs.into(),
-                //     ],
-                // ),
-                // CanFrame::new(
-                //     obd_id,
-                //     8,
-                //     &[
-                //         0x02,
-                //         OBDService::VehicleInformation.into(),
-                //         S9VehicleInformation::VIN.into(),
-                //     ],
-                // ),
-                // CanFrame::new(obd_id, 8, &[0x01, OBDService::StoredDTCs.into()]),
-            ]);
+            // let mut mux_context = MuxContext::new(can_backend);
+            // let mut queue = VecDeque::from(vec![
+            //     // CanFrame::new(
+            //     //     obd_id,
+            //     //     8,
+            //     //     &[
+            //     //         0x02,
+            //     //         OBDService::CurrentData.into(),
+            //     //         S1CurrentData::PIDs1.into(),
+            //     //     ],
+            //     // ),
+            //     // CanFrame::new(
+            //     //     obd_id,
+            //     //     8,
+            //     //     &[
+            //     //         0x02,
+            //     //         OBDService::VehicleInformation.into(),
+            //     //         S9VehicleInformation::PIDs.into(),
+            //     //     ],
+            //     // ),
+            //     // CanFrame::new(
+            //     //     obd_id,
+            //     //     8,
+            //     //     &[
+            //     //         0x02,
+            //     //         OBDService::VehicleInformation.into(),
+            //     //         S9VehicleInformation::VIN.into(),
+            //     //     ],
+            //     // ),
+            //     // CanFrame::new(obd_id, 8, &[0x01, OBDService::StoredDTCs.into()]),
+            // ]);
 
             let running_can = &SETTINGS.developer.can.running_can;
 
@@ -210,24 +115,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             Err(e) => match e {
                                 ParseError::CanError(e) => match e {
                                     CanError::UnknownMessageId(_id) => {
-                                        match mux_context.parse_frame(&frame) {
-                                            Ok(result) => match result {
-                                                MuxParseResult::AwaitingBroadcastAck => {
-                                                    // TODO: we need to track the current proprietor of the conversation for any given id
-                                                    let ack = ISOTPAckFrame::new(obd_id);
-                                                    queue.push_front(CanFrame::from_frame(&ack));
-                                                }
-                                                _ => {}
-                                            },
-                                            Err(e) => match e {
-                                                mux_context::MuxParseError::UnknownMessageId => {
-                                                    // TODO: propogate to other parsing mechanisms
-                                                }
-                                                _ => println!(
-                                                    "Context failed to parse frame {frame:?}: {e:?}"
-                                                ),
-                                            },
-                                        }
+                                        //     match mux_context.parse_frame(&frame) {
+                                        //         Ok(result) => match result {
+                                        //             MuxParseResult::AwaitingBroadcastAck => {
+                                        //                 // TODO: we need to track the current proprietor of the conversation for any given id
+                                        //                 let ack = ISOTPAckFrame::new(obd_id);
+                                        //                 queue.push_front(CanFrame::from_frame(&ack));
+                                        //             }
+                                        //             _ => {}
+                                        //         },
+                                        //         Err(e) => match e {
+                                        //             mux_context::MuxParseError::UnknownMessageId => {
+                                        //                 // TODO: propogate to other parsing mechanisms
+                                        //             }
+                                        //             _ => println!(
+                                        //                 "Context failed to parse frame {frame:?}: {e:?}"
+                                        //             ),
+                                        //         },
+                                        //     }
                                     }
                                     _ => println!("Failed to parse frame {frame:?}: {e:?}"),
                                 },
@@ -236,30 +141,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     };
 
-                    if !mux_context.is_waiting_for_responce() {
-                        if let Some(frame) = queue.pop_front() {
-                            match can_backend.write_frame(frame) {
-                                Ok(_) => {
-                                    // TODO: track this transaction to determine whether this conversation is ours
-                                    println!("Wrote frame: {frame:?}")
-                                }
-                                Err(e) => {
-                                    eprintln!("Failed to write to can_socket: {e:?}");
-                                }
-                            }
-                        }
-                    }
+                    // if !mux_context.is_waiting_for_responce() {
+                    //     if let Some(frame) = queue.pop_front() {
+                    //         match can_backend.write_frame(frame) {
+                    //             Ok(_) => {
+                    //                 // TODO: track this transaction to determine whether this conversation is ours
+                    //                 println!("Wrote frame: {frame:?}")
+                    //             }
+                    //             Err(e) => {
+                    //                 eprintln!("Failed to write to can_socket: {e:?}");
+                    //             }
+                    //         }
+                    //     }
+                    // }
                 } else {
                     let _ = running_can.watch().wait_for(|v| *v).await;
                 }
             }
         });
 
-        if virtual_cluster {
-            let mut backend = CanBackend::new(&selected_interface, interface_path).unwrap();
+        if GLOBAL_STATE.bin_args.virtual_cluster.value() {
+            let mut backend = CanBackend::new(
+                &GLOBAL_STATE.can.selected_interface.value(),
+                &GLOBAL_STATE.can.interface_path.value(),
+            )
+            .unwrap();
 
             if !matches!(
-                &selected_interface,
+                &GLOBAL_STATE.can.selected_interface.value(),
                 CanInterface::Fake | CanInterface::VirtualSocketCan
             ) {
                 panic!("Do not run the can generator on a real socket!")
@@ -311,9 +220,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ui backend bridges
     {
         let application_state = ui.global::<ApplicationState>();
-        application_state.set_virtual_cluster(virtual_cluster);
-        application_state
-            .set_interface_type(format!("{selected_interface}: {interface_path}").into());
+        application_state.set_virtual_cluster(GLOBAL_STATE.bin_args.virtual_cluster.value());
+        application_state.set_interface_type(
+            format!(
+                "{}: {}",
+                GLOBAL_STATE.can.selected_interface.value(),
+                GLOBAL_STATE.can.interface_path.value()
+            )
+            .into(),
+        );
 
         rs_type_resolver::bridge(ui.as_weak());
         settings_bridge::bridge(ui.as_weak());
@@ -326,8 +241,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // graceful shutdown
     {
-        use tokio::signal;
-
         tokio::spawn(async {
             match signal::ctrl_c().await {
                 Ok(_) => SHUTDOWN_SIGNAL.notify_one(),
@@ -341,9 +254,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
     }
 
-    init_state();
     ui.run()?;
 
+    // send shutdown after ui has closed
     SHUTDOWN_SIGNAL.notify_one();
 
     tokio_runtime.block_on(async { SHUTDOWN_FINISHED.notified().await });
@@ -355,27 +268,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn save_config() {
     if let Err(e) = SETTINGS.save_to_fs() {
         eprintln!("Failed to save user settings: {e:?}");
-    }
-}
-
-fn init_state() {
-    #[cfg(debug_assertions)]
-    {
-        if BIN_ARGS.get_flag("highlight") {
-            SETTINGS.developer.debug.debug_highlights.set_value(true);
-        }
-
-        if BIN_ARGS.get_flag("no_overlay") {
-            SETTINGS
-                .developer
-                .debug
-                .debug_overlay_enabled
-                .set_value(false);
-        }
-
-        if BIN_ARGS.get_flag("cli") {
-            tokio::spawn(cli_mode());
-        }
     }
 }
 

@@ -1,4 +1,5 @@
 use crate::application::dependencies::DEPENDENCIES;
+use crate::application::global_state::GLOBAL_STATE;
 use crate::data::parameters::Bound;
 use crate::data::units::UnitSystem;
 use crate::slint_generatedApp::{ClusterTheme, SettingsPageTarget};
@@ -19,15 +20,18 @@ const CONFIG_NAME: &str = "settings.toml";
 const LOAD_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub static SETTINGS: LazyLock<Arc<Settings>> = LazyLock::new(|| {
-    let ret = Default::default();
+    let ret = Settings::default();
+    ret.init();
 
     tokio::spawn(async move {
         if let Err(e) = SETTINGS.load_from_fs().await {
-            println!("Failed to load user settings from fs: {e:?}");
+            eprintln!("Failed to load user settings from fs: {e:?}");
+        } else {
+            println!("Loaded");
         }
     });
 
-    ret
+    Arc::new(ret)
 });
 
 #[derive(Debug)]
@@ -46,7 +50,7 @@ impl std::fmt::Display for SaveError {
 }
 
 crate::parameter_struct! {Settings {
-    [hidden] loaded: bool,
+    [hidden] loaded: bool = false,
 
     user {
         general {
@@ -224,6 +228,25 @@ impl Settings {
     pub fn loaded(&self) -> watch::Receiver<bool> {
         self.loaded.watch()
     }
+
+    pub fn init(&self) {
+        #[cfg(debug_assertions)]
+        {
+            self.developer
+                .debug
+                .debug_highlights
+                .set_value(GLOBAL_STATE.bin_args.debug.debug_highlights.value());
+
+            self.developer
+                .debug
+                .debug_overlay_enabled
+                .set_value(!GLOBAL_STATE.bin_args.debug.debug_no_overlay.value());
+
+            // if BIN_ARGS.get_flag("cli") {
+            //     tokio::spawn(cli_mode());
+            // }
+        }
+    }
 }
 
 fn get_dbc_version() -> String {
@@ -235,7 +258,6 @@ fn get_dbc_version() -> String {
                 ret.push_str(&format!(" ({})", value.trim()));
             }
         }
-    } else {
     }
 
     ret

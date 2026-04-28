@@ -1,3 +1,4 @@
+pub mod global_state;
 pub mod settings;
 
 pub mod dependencies {

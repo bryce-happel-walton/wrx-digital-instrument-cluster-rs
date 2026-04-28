@@ -1,3 +1,4 @@
+use crate::can::can_backend::{CanBackend, CanFrame, CanInterface};
 use crate::can::parsers::{iso_tp::*, obd2::*, uds::*};
 use crate::can::util::raw_id;
 
@@ -29,8 +30,8 @@ pub enum MuxParseResult {
     ConsecutiveFrameContinue,
 }
 
-#[derive(Default)]
 pub struct MuxContext {
+    can_backend: CanBackend,
     muxed_iso_tp_frames: BTreeMap<Id, Vec<ISOTPMux>>,
     waiting_for_responce: bool,
     conversation_owner: BTreeMap<Id, bool>,
@@ -38,6 +39,16 @@ pub struct MuxContext {
 }
 
 impl MuxContext {
+    pub fn new(can_backend: CanBackend) -> Self {
+        Self {
+            can_backend,
+            muxed_iso_tp_frames: Default::default(),
+            waiting_for_responce: Default::default(),
+            conversation_owner: Default::default(),
+            diagnostic_tool_detected: Default::default(),
+        }
+    }
+
     pub fn is_waiting_for_responce(&self) -> bool {
         self.waiting_for_responce
     }

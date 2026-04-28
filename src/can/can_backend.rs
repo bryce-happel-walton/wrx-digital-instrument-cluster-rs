@@ -1,5 +1,6 @@
 use crossbeam::channel::{Receiver, RecvTimeoutError, Sender, TrySendError, unbounded};
 use embedded_can::{Frame, Id};
+use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
 use std::error::Error;
@@ -11,12 +12,12 @@ use std::time::Duration;
 #[cfg(target_os = "linux")]
 use socketcan::Socket;
 
-#[allow(dead_code)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize, Deserialize, Default, PartialEq, PartialOrd)]
 pub enum CanInterface {
     VirtualSocketCan,
     SocketCan,
     SerialCan,
+    #[default]
     Fake,
 }
 
