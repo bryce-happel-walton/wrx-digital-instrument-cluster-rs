@@ -583,7 +583,6 @@ fn animate_openings(
 }
 
 fn animate_lights(
-    time: Res<Time>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     headlights: Query<&MeshMaterial3d<StandardMaterial>, With<Headlight>>,
     taillights: Query<&MeshMaterial3d<StandardMaterial>, (With<Taillight>, Without<Headlight>)>,
@@ -603,11 +602,11 @@ fn animate_lights(
 ) {
     let head_on = CAR_DATA.lowbeams_enabled().value()
         || CAR_DATA.highbeams_enabled().value()
-        || CAR_DATA.parking_lights_enabled().value();
+        || CAR_DATA.parking_lights_enabled().value()
+        || CAR_DATA.brake_sw().value();
     let high_beams = CAR_DATA.highbeams_enabled().value();
-    let blink_on = ops::sin(time.elapsed_secs() * std::f32::consts::TAU * 1.5) > 0.0;
-    let left_on = CAR_DATA.left_turn_signal_enabled().value() && blink_on;
-    let right_on = CAR_DATA.right_turn_signal_enabled().value() && blink_on;
+    let left_on = CAR_DATA.left_turn_signal_enabled().value();
+    let right_on = CAR_DATA.right_turn_signal_enabled().value();
 
     let head_emissive = if high_beams {
         LinearRgba::rgb(12.0, 12.0, 10.0)

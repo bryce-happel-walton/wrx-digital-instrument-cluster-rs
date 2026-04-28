@@ -182,7 +182,8 @@ CarData! {
 
     StatusSwitches => {
         lowbeams_enabled: bool,
-        handbrake_sw: bool,
+        brake_sw: bool = false,
+        handbrake_sw: bool = false,
         parking_lights_enabled: bool,
         highbeams_enabled: bool,
         reverse_sw: bool,
