@@ -364,7 +364,7 @@ fn setup(
         &mut meshes,
         &mut materials,
         door_panel,
-        Vec3::new(-door_x, door_y, front_hinge_z),
+        Vec3::new(door_x, door_y, front_hinge_z),
         door_offset,
         body_color,
         LeftFrontDoor,
@@ -375,7 +375,7 @@ fn setup(
         &mut meshes,
         &mut materials,
         door_panel,
-        Vec3::new(door_x, door_y, front_hinge_z),
+        Vec3::new(-door_x, door_y, front_hinge_z),
         door_offset,
         body_color,
         RightFrontDoor,
@@ -386,7 +386,7 @@ fn setup(
         &mut meshes,
         &mut materials,
         door_panel,
-        Vec3::new(-door_x, door_y, rear_hinge_z),
+        Vec3::new(door_x, door_y, rear_hinge_z),
         door_offset,
         body_color,
         LeftRearDoor,
@@ -397,7 +397,7 @@ fn setup(
         &mut meshes,
         &mut materials,
         door_panel,
-        Vec3::new(door_x, door_y, rear_hinge_z),
+        Vec3::new(-door_x, door_y, rear_hinge_z),
         door_offset,
         body_color,
         RightRearDoor,
@@ -457,7 +457,7 @@ fn setup(
         &mut meshes,
         &mut materials,
         blinker_size,
-        Transform::from_xyz(-blinker_x, lamp_y, chassis_front + lamp_protrude),
+        Transform::from_xyz(blinker_x, lamp_y, chassis_front + lamp_protrude),
         Color::srgb(0.4, 0.2, 0.0),
         LeftBlinker,
     );
@@ -467,7 +467,7 @@ fn setup(
         &mut meshes,
         &mut materials,
         blinker_size,
-        Transform::from_xyz(blinker_x, lamp_y, chassis_front + lamp_protrude),
+        Transform::from_xyz(-blinker_x, lamp_y, chassis_front + lamp_protrude),
         Color::srgb(0.4, 0.2, 0.0),
         RightBlinker,
     );
@@ -477,7 +477,7 @@ fn setup(
         &mut meshes,
         &mut materials,
         blinker_size,
-        Transform::from_xyz(-blinker_x, lamp_y, chassis_rear - lamp_protrude),
+        Transform::from_xyz(blinker_x, lamp_y, chassis_rear - lamp_protrude),
         Color::srgb(0.4, 0.2, 0.0),
         LeftBlinker,
     );
@@ -487,7 +487,7 @@ fn setup(
         &mut meshes,
         &mut materials,
         blinker_size,
-        Transform::from_xyz(blinker_x, lamp_y, chassis_rear - lamp_protrude),
+        Transform::from_xyz(-blinker_x, lamp_y, chassis_rear - lamp_protrude),
         Color::srgb(0.4, 0.2, 0.0),
         RightBlinker,
     );
@@ -566,19 +566,19 @@ fn animate_openings(
     }
     for (mut t, mut a) in &mut left_front {
         let angle = lerp_open_angle(&mut a.0, CAR_DATA.left_front_door_open().value(), dt);
-        t.rotation = Quat::from_rotation_y(angle);
+        t.rotation = Quat::from_rotation_y(-angle);
     }
     for (mut t, mut a) in &mut right_front {
         let angle = lerp_open_angle(&mut a.0, CAR_DATA.right_front_door_open().value(), dt);
-        t.rotation = Quat::from_rotation_y(-angle);
+        t.rotation = Quat::from_rotation_y(angle);
     }
     for (mut t, mut a) in &mut left_rear {
         let angle = lerp_open_angle(&mut a.0, CAR_DATA.left_rear_door_open().value(), dt);
-        t.rotation = Quat::from_rotation_y(angle);
+        t.rotation = Quat::from_rotation_y(-angle);
     }
     for (mut t, mut a) in &mut right_rear {
         let angle = lerp_open_angle(&mut a.0, CAR_DATA.right_rear_door_open().value(), dt);
-        t.rotation = Quat::from_rotation_y(-angle);
+        t.rotation = Quat::from_rotation_y(angle);
     }
 }
 
