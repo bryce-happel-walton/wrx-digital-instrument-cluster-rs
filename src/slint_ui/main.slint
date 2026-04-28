@@ -16,6 +16,7 @@ import {
     DebugOverlay,
 } from "@widgets/debug.slint";
 import { SettingsMenu, SettingsPageTarget } from "@widgets/settings.slint";
+import { BevyCarDisplayGlobal } from "@widgets/bevy_car_display.slint";
 import {
     SBoundInt,
     SFDataParameter,
@@ -63,7 +64,7 @@ import "@fonts/JetBrainsMono/fonts/ttf/JetBrainsMono-Regular.ttf";
 // Export types
 export { SFDataParameter, SIDataParameter, SBDataParameter, SStrDataParameter, SUnitSystem, SCanFrameDisplay, SettingsMenuItemType, SettingsMenuItem, DerivedParamType, ClusterTheme, SBoundInt, SettingsPageTarget }
 // Export globals
-export { SCarData, DebugMenuState, GlobalThemeData, CanDisplay, WidgetContainerState, SettingsLayout, RSTypeResolver, LangResolver, BackendLib }
+export { SCarData, DebugMenuState, GlobalThemeData, CanDisplay, WidgetContainerState, SettingsLayout, RSTypeResolver, LangResolver, BackendLib, BevyCarDisplayGlobal }
 export * from "@lib/state.slint";
 
 export component App inherits Window {

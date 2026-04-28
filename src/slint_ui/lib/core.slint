@@ -389,11 +389,14 @@ export component Button inherits ControlledFocusScope {
     width: GlobalSizing.button-width;
     init-focus: false;
 
-    i-text := Label {
+    Rectangle {
+        height: root.height - root.text-padding * 2;
+        width: root.width - root.text-padding * 2;
         x: root.text-padding;
         y: root.text-padding;
-        width: root.width - root.text-padding * 2;
-        height: root.height - root.text-padding * 2;
+        clip: true;
+
+        i-text := Label { }
     }
 }
 

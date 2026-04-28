@@ -30,9 +30,12 @@ pub fn bridge(handle_weak: Weak<App>) {
             let value = Bound::<i32>::from(value);
             serde_json::to_string(&value).unwrap_or_default().into()
         });
+
         resolver
             .on_serialize_bool(|value| serde_json::to_string(&value).unwrap_or_default().into());
+
         resolver.on_jsonify_str(|value| format!("\"{value}\"").into()); // add quotation marks for json serialization
+
         resolver.on_dejsonify_str(|value| {
             if value.starts_with("\"") && value.ends_with("\"") {
                 &value[1..(value.len() - 1)] // remove the quotation marks from json values
@@ -41,6 +44,7 @@ pub fn bridge(handle_weak: Weak<App>) {
             }
             .into()
         });
+
         resolver.on_get_enum_variants(|ty| match ty.as_str().trim() {
             stringify!(StrLang) => Lang::iter()
                 .map(|var| SharedString::from(var.as_ref()))

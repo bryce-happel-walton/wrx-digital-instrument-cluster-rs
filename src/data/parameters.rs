@@ -295,7 +295,7 @@ macro_rules! parameter_match {
 #[derive(Debug)]
 pub enum Node {
     /// inherently read-only
-    HiddenParameter(),
+    HiddenParameter,
     ReadOnlyParameter {
         name: &'static str,
         ty: &'static str,
@@ -315,7 +315,7 @@ impl Node {
         let pad = "  ".repeat(indent);
 
         match self {
-            Node::HiddenParameter() => {
+            Node::HiddenParameter => {
                 writeln!(f, "{pad} <hidden item>")
             }
             Node::ReadOnlyParameter { name, ty } => {
@@ -454,7 +454,7 @@ macro_rules! parameter_struct {
     };
 
     (@node-internal $self:ident| param [hidden] $param:ident: $ty:path) => {
-        &$crate::data::parameters::Node::HiddenParameter()
+        &$crate::data::parameters::Node::HiddenParameter
     };
     (@node-internal $self:ident| param [ro] $param:ident: $ty:path) => {
         &$crate::data::parameters::Node::ReadOnlyParameter{
@@ -472,7 +472,7 @@ macro_rules! parameter_struct {
         if $sub_condition {
             $self.$sub.get_page_layout()
         } else {
-            &$crate::data::parameters::Node::HiddenParameter()
+            &$crate::data::parameters::Node::HiddenParameter
         }
     };
     (@node-internal $self:ident| page $sub:ident) => {

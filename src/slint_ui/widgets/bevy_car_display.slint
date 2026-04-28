@@ -1,0 +1,26 @@
+export global BevyCarDisplayGlobal {
+    in property <bool> bevy-widget-focused;
+    in property <image> texture;
+    in-out property <length> requested-texture-width;
+    in-out property <length> requested-texture-height;
+}
+
+export component BevyCarDisplayWidget inherits Rectangle {
+    in property <bool> has-focus <=> BevyCarDisplayGlobal.bevy-widget-focused;
+
+    i-texture := Image {
+        source: BevyCarDisplayGlobal.texture;
+        image-fit: fill;
+        width: 100%;
+        height: 100%;
+        preferred-width: self.source.width * 1px;
+        preferred-height: self.source.height * 1px;
+
+        changed width => {
+            BevyCarDisplayGlobal.requested-texture-width = self.width
+        }
+        changed height => {
+            BevyCarDisplayGlobal.requested-texture-height = self.height
+        }
+    }
+}

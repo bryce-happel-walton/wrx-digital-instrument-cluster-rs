@@ -22,6 +22,9 @@ export global ApplicationState {
 export global GeneralSettings {
     in-out property <bool> disable-hill-assist: false;
     callback update-disable-hill-assist(bool);
+
+    in-out property <bool> use-bevy-car-display: false;
+    callback update-use-bevy-car-display(bool);
 }
 
 export global AccessibilitySettings {

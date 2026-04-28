@@ -14,18 +14,19 @@ import {
 import {
     ApplicationState,
     DebugSettings,
+    GeneralSettings,
     AccessibilitySettings,
 } from "@lib/state.slint";
 import { CanDisplayWidget } from "@widgets/can_display.slint";
 import { CarDisplayWidget } from "@widgets/car_display.slint";
-import { GlobalAnimation, DebugHighlight } from "../lib/core.slint";
+import { BevyCarDisplayWidget } from "@widgets/bevy_car_display.slint";
+import { GlobalAnimation, DebugHighlight } from "@lib/core.slint";
 
 export global WidgetContainerState {
     in-out property <int> current-page: 0;
     in-out property <int> focused-page: -1; // -1 if not entered
-
-    in property <int> num-pages: 0;
-    in property <[image]> widget-icons;
+    in-out property <int> num-pages: 0;
+    in-out property <int> num-visible-pages: 0;
 
     public function change-page(to-page: int) {
         if to-page != current-page {
@@ -42,13 +43,21 @@ export global WidgetContainerState {
     public function exit-page() {
         self.focused-page = -1;
     }
+
+    callback reset();
+    pure callback create-widget() -> int;
+    pure callback get-page-number-of-id(id: int) -> int;
+    pure callback set-widget-visible(id: int, bool);
+    pure callback get-widget-visible(id: int) -> bool;
 }
 
 component Widget inherits FocusDomain {
     in-out property <bool> focusable: false;
     in property <image> icon: @image-url("@svg/abs-warning-light.svg");
-    out property <int> page-number;
-    out property <bool> has-focus: WidgetContainerState.focused-page == self.page-number;
+    out property <int> page-number: WidgetContainerState.get-page-number-of-id(self.widget-id);
+    out property <int> widget-id: WidgetContainerState.create-widget();
+    out property <bool> has-target: WidgetContainerState.current-page == self.widget-id; // this widget is currently visible to the user
+    out property <bool> has-focus: WidgetContainerState.focused-page == self.widget-id; // the user is currently interacting with this widget
 
     force-exit-strategy: self.focusable;
     force-focus: false;
@@ -64,12 +73,9 @@ component Widget inherits FocusDomain {
         }
     }
 
-    init => {
-        self.page-number = WidgetContainerState.num-pages;
-        WidgetContainerState.num-pages += 1;
-        // TODO: WidgetContainerState.set-page-icon(self.page-number, self.icon);
-    }
+    changed visible => WidgetContainerState.set-widget-visible(self.widget_id, self.visible);
 
+    init => WidgetContainerState.set-widget-visible(self.widget_id, self.visible);
     exited => WidgetContainerState.exit-page();
 }
 
@@ -82,9 +88,7 @@ export component WidgetContainer {
     height: 600px;
     forward-focus: center-widget-container-indicator;
 
-    init => {
-        WidgetContainerState.num-pages = 0;
-    }
+    init => WidgetContainerState.reset();
 
     VerticalLayout {
         // TODO: add dynamic images
@@ -98,61 +102,50 @@ export component WidgetContainer {
             nav-front-forward => WidgetContainerState.change-page(0);
             nav-end-backward => WidgetContainerState.change-page(WidgetContainerState.num-pages - 1);
 
-            HorizontalLayout {
-                alignment: center;
-                spacing: FocusState.focus-highlight-size;
-                padding: FocusState.focus-highlight-size;
+            for i in WidgetContainerState.num-pages: Rectangle {
+                private property <int> page-number: WidgetContainerState.get-page-number-of-id(i);
+                private property <bool> has-view: WidgetContainerState.current-page == i;
+                private property <bool> domain-active: center-widget-container-indicator.domain-active;
+                private property <length> item-size: parent.height;
+                private property <length> spacing: FocusState.focus-highlight-size;
+                private property <length> total-width: WidgetContainerState.num-visible-pages * (item-size + spacing) - spacing;
 
-                for i in WidgetContainerState.num-pages: Rectangle {
-                    private property <bool> has-view: WidgetContainerState.current-page == i;
-                    private property <bool> domain-active: center-widget-container-indicator.domain-active;
+                height: 100%;
+                width: self.height;
+                forward-focus: i-focus;
+                visible: WidgetContainerState.get-widget-visible(i);
+                x: (parent.width - total-width) / 2 + page-number * (item-size + spacing);
 
-                    height: 100%;
-                    width: self.height;
-                    forward-focus: i-focus;
+                function attempt-focus() {
+                    if domain-active && has-view && !i-focus.has-focus {
+                        i-focus.focus();
+                    }
+                }
 
-                    function attempt-focus() {
-                        if domain-active && has-view && !i-focus.has-focus {
-                            i-focus.focus();
+                changed has-view => attempt-focus();
+                changed domain-active => attempt-focus();
+
+                init => {
+                    if i == 0 && domain-active {
+                        i-focus.focus();
+                    }
+                }
+
+                Text {
+                    color: white;
+                    text: parent.page-number + 1;
+                }
+
+                i-focus := ControlledFocusScope {
+                    init-focus: false;
+
+                    focus-gained => {
+                        if !has-view { // prevent dirty-ing the number and causing recursion
+                            WidgetContainerState.change-page(i);
                         }
                     }
 
-                    changed has-view => {
-                        attempt-focus();
-                    }
-
-                    changed domain-active => {
-                        attempt-focus();
-                    }
-
-                    init => {
-                        if i == 0 && domain-active {
-                            i-focus.focus();
-                        }
-                    }
-
-                    Text {
-                        color: white;
-                        text: i + 1;
-                    }
-
-                    Image {
-                        source: WidgetContainerState.widget-icons[i];
-                        colorize: white;
-                        image-fit: ImageFit.contain;
-                    }
-
-                    i-focus := ControlledFocusScope {
-                        init-focus: false;
-
-                        focus-gained => {
-                            if !has-view { // prevent dirty-ing the number and causing recursion
-                                WidgetContainerState.change-page(i);
-                            }
-                        }
-
-                        activated => WidgetContainerState.focus-page(i);
-                    }
+                    activated => WidgetContainerState.focus-page(i);
                 }
             }
         }
@@ -171,17 +164,22 @@ export component WidgetContainer {
                     easing: ease-in-out;
                 }
 
-                // todo: disable all widgets when they're not in use
                 car-display-widget := Widget {
-                    height: 100%;
-                    width: 100%;
-                    CarDisplayWidget {
+                    if !GeneralSettings.use-bevy-car-display: CarDisplayWidget {
+                        height: 100%;
+                        width: 100%;
+                    }
+
+                    if GeneralSettings.use-bevy-car-display: BevyCarDisplayWidget {
+                        has-focus: parent.has-target;
                         height: 100%;
                         width: 100%;
                     }
                 }
 
                 road-indicator-widget := Widget {
+                    visible: !GeneralSettings.use-bevy-car-display;
+
                     RoadIndicatorWidget {
                         height: 100%;
                         width: 100%;
@@ -216,7 +214,7 @@ export component WidgetContainer {
                     nav-end-backward => FocusState.force-focus(can-display-widget.last-focus-id);
 
                     can-display-widget := CanDisplayWidget {
-                        running: parent.has-focus && (WidgetContainerState.current-page == parent.page-number);
+                        running: parent.has-focus;
                         height: 100%;
                         width: 100%;
                     }

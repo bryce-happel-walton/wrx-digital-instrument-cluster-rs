@@ -76,6 +76,11 @@ pub fn bridge(handle_weak: Weak<App>) {
             bind!(DebugSettings.debug_overlay_enabled <=> SETTINGS.developer.debug.debug_overlay_enabled);
             bind!(DebugSettings.extra_debug_info <=> SETTINGS.developer.debug.extra_debug_info);
 
+            #[cfg(feature = "bevy")]
+            bind!(GeneralSettings.use_bevy_car_display <=> SETTINGS.user.widgets.car_display_bevy.model_3d);
+            #[cfg(not(feature = "bevy"))]
+            bind!(GeneralSettings.use_bevy_car_display <=| SETTINGS.user.widgets.car_display.model_3d);
+
             bind!(SystemInfo.total_memory <=| SETTINGS.developer.system_info.total_memory_mb);
             bind!(SystemInfo.used_memory <=| SETTINGS.developer.system_info.used_memory_mb);
             bind!(SystemInfo.process_memory <=| SETTINGS.developer.system_info.process_memory_mb);
@@ -211,7 +216,7 @@ fn unroll_layout(
     }
 
     match node {
-        Node::HiddenParameter() => {}
+        Node::HiddenParameter => {}
         Node::ReadOnlyParameter { name, ty } => ret.push(SettingsMenuItem {
             name: (*name).into(),
             param_type: (*ty).into(),
@@ -257,18 +262,19 @@ fn unroll_path<'a>(
     current_path: String,
     current_depth: usize,
 ) -> (&'a Node, String) {
-    if split_path.len() == current_depth {
-    } else if let Node::Page { name: _, items } = node {
-        for item in items {
-            if let Node::Page { name, items: _ } = item {
-                if let Some(current_item) = split_path.get(current_depth + 1) {
-                    if current_item == name {
-                        return unroll_path(
-                            item,
-                            split_path,
-                            format!("{}.", split_path[..=current_depth].join(".")),
-                            current_depth + 1,
-                        );
+    if split_path.len() != current_depth {
+        if let Node::Page { name: _, items } = node {
+            for item in items {
+                if let Node::Page { name, items: _ } = item {
+                    if let Some(current_item) = split_path.get(current_depth + 1) {
+                        if current_item == name {
+                            return unroll_path(
+                                item,
+                                split_path,
+                                format!("{}.", split_path[..=current_depth].join(".")),
+                                current_depth + 1,
+                            );
+                        }
                     }
                 }
             }
