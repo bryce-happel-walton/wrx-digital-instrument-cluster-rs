@@ -4,6 +4,7 @@ use std::{
 };
 
 pub static STATIC_OBD_DATA: LazyLock<Arc<StaticObddata>> = LazyLock::new(|| Default::default());
+pub static LIVE_OBD_DATA: LazyLock<Arc<LiveObddata>> = LazyLock::new(|| Default::default());
 
 crate::parameter_struct!(StaticOBDData {
     [hidden] initialized: bool = false,
@@ -15,5 +16,14 @@ crate::parameter_struct!(StaticOBDData {
     s9_vehicle_information {
         [ro] vin: String,
         [ro] supported_pids: BTreeMap<u8, bool>,
+        [ro] ecu_name: String,
     },
+});
+
+crate::parameter_struct!(LiveOBDData {
+    [ro] engine_load: f32,
+    [ro] engine_speed: u16,
+    [ro] control_module_voltage: f32,
+    [ro] engine_fuel_rate: f32,
+    [ro] odometer: f32,
 });

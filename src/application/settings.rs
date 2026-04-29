@@ -26,8 +26,6 @@ pub static SETTINGS: LazyLock<Arc<Settings>> = LazyLock::new(|| {
     tokio::spawn(async move {
         if let Err(e) = SETTINGS.load_from_fs().await {
             eprintln!("Failed to load user settings from fs: {e:?}");
-        } else {
-            println!("Loaded");
         }
     });
 

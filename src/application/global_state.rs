@@ -1,4 +1,4 @@
-use crate::can::can_backend::{CanBackend, CanFrame, CanInterface};
+use crate::can::can_backend::CanInterface;
 
 use clap::ArgMatches;
 
@@ -14,6 +14,7 @@ const DEFAULT_SL_DEV: &str = "/dev/tty.usbmodem101";
 pub static BIN_ARGS: LazyLock<ArgMatches> = LazyLock::new(|| {
     let conflicting_args = vec![
         "fakedev",
+        #[cfg(target_os = "linux")]
         "candev",
         "sldev",
         #[cfg(target_os = "linux")]
@@ -29,6 +30,7 @@ pub static BIN_ARGS: LazyLock<ArgMatches> = LazyLock::new(|| {
             clap::arg!(-f --fakedev "Runs the application in virtual mode using a fake can socket emulator")
                 .required(false)
                 .conflicts_with_all(conflicting_args.iter().filter(|&x| x != &"fakedev")),
+            #[cfg(target_os = "linux")]
             clap::arg!(-c --candev <PATH> "Path to the desired CAN device to use")
                 .required(false)
                 .default_value(CAN_IF_NAME)
@@ -99,7 +101,9 @@ impl GlobalState {
             {
                 CanInterface::Fake
             }
-        } else if BIN_ARGS.value_source("candev") == Some(clap::parser::ValueSource::CommandLine) {
+        } else if cfg!(target_os = "linux")
+            && (BIN_ARGS.value_source("candev") == Some(clap::parser::ValueSource::CommandLine))
+        {
             CanInterface::SocketCan
         } else if BIN_ARGS.value_source("sldev") == Some(clap::parser::ValueSource::CommandLine) {
             CanInterface::SerialCan
