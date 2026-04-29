@@ -1,6 +1,8 @@
+pub mod acquisition;
+pub mod bus;
 pub mod can_backend;
-pub mod mux_context;
-pub mod parsers;
+pub mod protocol;
+pub mod router;
 pub mod util;
 
 pub mod emulators {

@@ -196,9 +196,15 @@ export component TrackTheme inherits Rectangle {
                 y: 0 + bottom-span.height - self.height;
                 alignment: start;
 
-                HeadlightIndicator { }
+                VerticalLayout {
+                    alignment: center;
+                    HeadlightIndicator { }
+                }
 
-                DriverSeatbeltIndicator { }
+                VerticalLayout {
+                    alignment: center;
+                    DriverSeatbeltIndicator { }
+                }
             }
 
             i-right-indicator-stack := HorizontalLayout {
@@ -210,9 +216,15 @@ export component TrackTheme inherits Rectangle {
                 y: 0 + bottom-span.height - self.height;
                 alignment: end;
 
-                CheckEngineLight { }
+                VerticalLayout {
+                    alignment: center;
+                    CheckEngineLight { }
+                }
 
-                OilPressureWarningLight { }
+                VerticalLayout {
+                    alignment: center;
+                    OilPressureWarningLight { }
+                }
             }
         }
     }
