@@ -139,12 +139,13 @@ pub fn make_app() -> Result<AppWindow, Box<dyn std::error::Error>> {
         let frames = frames.clone();
         app_window
             .window()
-            .set_rendering_notifier(move |state, graphics_api| match state {
+            .set_rendering_notifier(move |state, _| match state {
                 slint::RenderingState::BeforeRendering => {
                     frames.fetch_add(1, Ordering::Relaxed);
                 }
                 _ => {}
-            });
+            })
+            .unwrap();
     }
 
     {
