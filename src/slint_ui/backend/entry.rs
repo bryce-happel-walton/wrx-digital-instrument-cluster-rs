@@ -20,8 +20,8 @@ pub fn make_app() -> Result<AppWindow, Box<dyn std::error::Error>> {
         use bevy::prelude::*;
 
         let mut wgpu_settings = slint::wgpu_27::WGPUSettings::default();
-        wgpu_settings.device_required_limits = slint::wgpu_27::wgpu::Limits::default()
-            .using_resolution(slint::wgpu_27::wgpu::Limits::downlevel_defaults());
+        wgpu_settings.device_required_limits = slint::wgpu_27::wgpu::Limits::downlevel_defaults();
+
         slint::BackendSelector::new()
             .require_wgpu_27(slint::wgpu_27::WGPUConfiguration::Automatic(wgpu_settings))
             .select()?;
