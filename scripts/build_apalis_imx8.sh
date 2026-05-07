@@ -1,15 +1,24 @@
 #!/bin/bash
 set -e
 
-APPLICATION_NAME="wrx-digital-instrument-cluster-rs"
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 LATEST_SDK=$(ls -1 /opt/wrx-cluster-rs | sort -V | tail -n1)
 SDK_SETUP="/opt/wrx-cluster-rs/${LATEST_SDK}/environment-setup-armv8a-tdx-linux"
 TARGET="aarch64-unknown-linux-gnu"
-FEATURES="apalis_imx8,wayland"
+BASE_FEATURES="apalis_imx8,wayland"
 
-# Usage: ./deploy.sh [profile]
+# Usage: ./build_apalis_imx8.sh [profile] [extra,features]
+#   profile        - debug (default), release, or any custom profile name
+#   extra,features - comma-separated cargo features to append to the baseline
 PROFILE="${1:-debug}"
+EXTRA_FEATURES="${2:-}"
+
+if [[ -n "$EXTRA_FEATURES" ]]; then
+    FEATURES="${BASE_FEATURES},${EXTRA_FEATURES}"
+else
+    FEATURES="$BASE_FEATURES"
+fi
 
 if [[ ! -f "$SDK_SETUP" ]]; then
     printf "\tERROR: Yocto SDK environment setup script not found at:\n"
@@ -21,16 +30,31 @@ if [[ ! -f "$SDK_SETUP" ]]; then
     exit 1
 fi
 
-printf "[1/2] Sourcing Yocto SDK...\n"
+printf "[build 1/2] Sourcing Yocto SDK...\n"
 printf "\tUsing SDK: $SDK_SETUP\n"
+
+HOST_TRIPLE="$(rustc -vV | awk '/^host:/ {print $2}')"
+HOST_TRIPLE_UNDERSCORE="${HOST_TRIPLE//-/_}"
+HOST_CC_DETECTED="$(command -v cc || command -v gcc)"
+HOST_CXX_DETECTED="$(command -v c++ || command -v g++)"
+HOST_AR_DETECTED="$(command -v ar)"
+
 source "$SDK_SETUP"
 
+export "HOST_CC=$HOST_CC_DETECTED"
+export "HOST_CXX=$HOST_CXX_DETECTED"
+export "CC_${HOST_TRIPLE_UNDERSCORE}=$HOST_CC_DETECTED"
+export "CXX_${HOST_TRIPLE_UNDERSCORE}=$HOST_CXX_DETECTED"
+export "AR_${HOST_TRIPLE_UNDERSCORE}=$HOST_AR_DETECTED"
+export "CFLAGS_${HOST_TRIPLE_UNDERSCORE}="
+export "CXXFLAGS_${HOST_TRIPLE_UNDERSCORE}="
+
 if ! rustup target list --installed | grep -q "^$TARGET$"; then
-    printf "[1b/2] Installing Rust target '$TARGET'...\n"
+    printf "[build 1b/2] Installing Rust target '$TARGET'...\n"
     rustup target add "$TARGET"
 fi
 
-printf "[2/2] Building Rust project with profile '$PROFILE' for $TARGET...\n"
+printf "[build 2/2] Building Rust project with profile '$PROFILE' for $TARGET...\n"
 export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-tdx-linux-gcc
 export RUSTFLAGS="-C link-arg=--sysroot=$SDKTARGETSYSROOT"
 BUILD_EXTRA_FLAGS="--no-default-features --features $FEATURES"
