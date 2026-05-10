@@ -66,16 +66,6 @@ crate::parameter_struct! {Settings {
         theme {
             selected_theme: ClusterTheme = ClusterTheme::Default,
         },
-
-        widgets {
-            [cfg!(feature = "bevy")] car_display_bevy {
-                model_3d: bool = true,
-            },
-
-            [cfg!(not(feature = "bevy"))] car_display {
-                [hidden] model_3d: bool = false,
-            },
-        },
     },
 
     [cfg!(debug_assertions)] developer {

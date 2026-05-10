@@ -2,7 +2,7 @@
     name         = "wrx-digital-instrument-cluster-rs"
     description  = "A digital instrument cluster for the 2018 Subaru WRX"
     repository   = "https://github.com/Hentai-Racing/wrx-digital-instrument-cluster-rs"
-    version      = "0.30.1"                                                             # Only 1.0.0 when ALL factory features exist
+    version      = "0.31.0"                                                             # Only 1.0.0 when ALL factory features exist
     authors      = ["Bryce Happel Walton <brycewaltonmail@gmail.com>"]
     edition      = "2024"
     build        = "build.rs"
@@ -14,7 +14,6 @@
     wayland     = ["slint/backend-winit-wayland", "slint/renderer-skia"]
     apalis_imx8 = ["dep:gpio-cdev", "dep:industrial-io"]
     slcan       = ["dep:slcan", "dep:serial"]
-    bevy        = ["dep:bevy", "dep:bevy_image", "dep:spin_on", "slint/unstable-wgpu-27"]
 
 [dependencies]
     slint        = { git = "https://github.com/slint-ui/slint.git", default-features = false, features = ["compat-1-2", "std"] }
@@ -40,11 +39,6 @@
     industrial-io = { version = "*", optional = true }
     serial        = { version = "*", optional = true }
     slcan         = { git = "https://github.com/bryce-happel-walton/slcan.git", optional = true }
-
-    # bevy
-    bevy       = { version = "*", default-features = false, features = ["bevy_core_pipeline", "bevy_pbr", "bevy_window", "bevy_scene", "bevy_gltf", "bevy_log", "jpeg", "png", "tonemapping_luts", "multi_threaded", "reflect_auto_register", "debug"], optional = true }
-    bevy_image = { version = "*", features = ["zstd_rust"], optional = true }
-    spin_on    = { version = "*", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
     socketcan = "*"

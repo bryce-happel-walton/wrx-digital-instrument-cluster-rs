@@ -1,6 +1,4 @@
 pub mod backend_lib;
-#[cfg(feature = "bevy")]
-pub mod bevy;
 pub mod can_display;
 pub mod car_data_bridge;
 pub mod entry;

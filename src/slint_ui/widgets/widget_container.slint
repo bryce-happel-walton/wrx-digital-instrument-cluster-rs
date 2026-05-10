@@ -19,7 +19,6 @@ import {
 } from "@lib/state.slint";
 import { CanDisplayWidget } from "@widgets/can_display.slint";
 import { CarDisplayWidget } from "@widgets/car_display.slint";
-import { BevyCarDisplayWidget } from "@widgets/bevy_car_display.slint";
 import { GlobalAnimation, DebugHighlight } from "@lib/core.slint";
 
 export global WidgetContainerState {
@@ -165,21 +164,13 @@ export component WidgetContainer {
                 }
 
                 car-display-widget := Widget {
-                    if !GeneralSettings.use-bevy-car-display: CarDisplayWidget {
-                        height: 100%;
-                        width: 100%;
-                    }
-
-                    if GeneralSettings.use-bevy-car-display: BevyCarDisplayWidget {
-                        has-focus: parent.has-target;
+                    CarDisplayWidget {
                         height: 100%;
                         width: 100%;
                     }
                 }
 
                 road-indicator-widget := Widget {
-                    visible: !GeneralSettings.use-bevy-car-display;
-
                     RoadIndicatorWidget {
                         height: 100%;
                         width: 100%;

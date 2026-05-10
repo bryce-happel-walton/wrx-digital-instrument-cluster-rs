@@ -76,11 +76,6 @@ pub fn bridge(handle_weak: Weak<App>) {
             bind!(DebugSettings.debug_overlay_enabled <=> SETTINGS.developer.debug.debug_overlay_enabled);
             bind!(DebugSettings.extra_debug_info <=> SETTINGS.developer.debug.extra_debug_info);
 
-            #[cfg(feature = "bevy")]
-            bind!(GeneralSettings.use_bevy_car_display <=> SETTINGS.user.widgets.car_display_bevy.model_3d);
-            #[cfg(not(feature = "bevy"))]
-            bind!(GeneralSettings.use_bevy_car_display <=| SETTINGS.user.widgets.car_display.model_3d);
-
             bind!(SystemInfo.total_memory <=| SETTINGS.developer.system_info.total_memory_mb);
             bind!(SystemInfo.used_memory <=| SETTINGS.developer.system_info.used_memory_mb);
             bind!(SystemInfo.process_memory <=| SETTINGS.developer.system_info.process_memory_mb);
