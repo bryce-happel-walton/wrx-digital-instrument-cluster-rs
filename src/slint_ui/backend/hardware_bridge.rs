@@ -67,6 +67,10 @@ pub fn bridge(ui: Weak<App>, backend: Arc<HardwareBackend>) {
 
                     select! {
                         Ok(_) = navigation_state.changed() => {
+                            if value != HardwareNavigationState::Idle {
+                                dispatch_navigation(HardwareNavigationState::Idle);
+                            }
+
                             dispatch_navigation(value);
                         },
                         else => {
