@@ -28,8 +28,7 @@ fn recompute_page_numbers(handle_weak: Weak<App>, widgets: &mut [WidgetState]) {
 
 pub fn bridge(handle_weak: Weak<App>) {
     if let Some(handle) = handle_weak.upgrade() {
-        static WIDGETS: LazyLock<Arc<RwLock<Vec<WidgetState>>>> =
-            LazyLock::new(|| Default::default());
+        static WIDGETS: LazyLock<Arc<RwLock<Vec<WidgetState>>>> = crate::LazyLockDefault!();
         let state = handle.global::<WidgetContainerState>();
 
         {

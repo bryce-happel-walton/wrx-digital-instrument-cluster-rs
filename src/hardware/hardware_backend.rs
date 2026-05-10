@@ -7,7 +7,7 @@ use crate::hardware::apalis_imx8;
 use std::sync::{Arc, LazyLock};
 
 pub(crate) static HARDWARE_NAVIGATION_INPUT: LazyLock<Arc<Parameter<HardwareNavigationState>>> =
-    LazyLock::new(|| Default::default());
+    crate::LazyLockDefault!();
 
 #[derive(Default)]
 pub enum Backend {

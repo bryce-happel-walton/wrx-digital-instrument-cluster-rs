@@ -266,7 +266,7 @@ impl CanBackend {
 }
 
 static FAKE_CAN_BUSSES: LazyLock<Mutex<HashMap<String, Arc<FakeCanBus>>>> =
-    LazyLock::new(|| Default::default());
+    crate::LazyLockDefault!();
 
 #[derive(Default)]
 pub struct FakeCanBus {

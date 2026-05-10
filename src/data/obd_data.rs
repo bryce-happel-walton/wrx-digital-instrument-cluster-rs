@@ -3,8 +3,8 @@ use std::{
     sync::{Arc, LazyLock},
 };
 
-pub static STATIC_OBD_DATA: LazyLock<Arc<StaticObddata>> = LazyLock::new(|| Default::default());
-pub static LIVE_OBD_DATA: LazyLock<Arc<LiveObddata>> = LazyLock::new(|| Default::default());
+pub static STATIC_OBD_DATA: LazyLock<Arc<StaticObddata>> = crate::LazyLockDefault!();
+pub static LIVE_OBD_DATA: LazyLock<Arc<LiveObddata>> = crate::LazyLockDefault!();
 
 crate::parameter_struct!(StaticOBDData {
     [hidden] initialized: bool = false,

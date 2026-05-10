@@ -2,6 +2,7 @@ mod application;
 mod can;
 mod data;
 mod hardware;
+mod lib;
 mod slint_ui;
 
 use crate::application::global_state::GLOBAL_STATE;
