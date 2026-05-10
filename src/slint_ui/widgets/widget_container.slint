@@ -26,6 +26,7 @@ export global WidgetContainerState {
     in-out property <int> focused-page: -1; // -1 if not entered
     in-out property <int> num-pages: 0;
     in-out property <int> num-visible-pages: 0;
+    out property <bool> bridge-connected: false;
 
     public function change-page(to-page: int) {
         if to-page != current-page {
@@ -43,10 +44,15 @@ export global WidgetContainerState {
         self.focused-page = -1;
     }
 
+    // TRACKING: https://github.com/slint-ui/slint/issues/11673
+    // public function connect-bridge() {
+    //     self.bridge-connected = true;
+    // }
+
     callback reset();
     pure callback create-widget() -> int;
     pure callback get-page-number-of-id(id: int) -> int;
-    pure callback set-widget-visible(id: int, bool);
+    callback set-widget-visible(id: int, bool);
     pure callback get-widget-visible(id: int) -> bool;
 }
 
@@ -63,6 +69,9 @@ component Widget inherits FocusDomain {
     height: 100%;
     width: 100%;
 
+    // private property <bool> bridge-connected: WidgetContainerState.bridge-connected;
+    // private property <bool> constructed: false;
+
     changed has-focus => {
         if focusable && has-focus {
             self.no-graceful-return = true;
@@ -72,9 +81,22 @@ component Widget inherits FocusDomain {
         }
     }
 
-    changed visible => WidgetContainerState.set-widget-visible(self.widget_id, self.visible);
+    function update-state() {
+        WidgetContainerState.set-widget-visible(self.widget-id, self.visible);
+    }
 
-    init => WidgetContainerState.set-widget-visible(self.widget_id, self.visible);
+    // function construct() {
+    //     if bridge-connected && !constructed {
+    //         self.widget-id = WidgetContainerState.create-widget();
+    //         self.constructed = true;
+    //     }
+    // }
+
+    changed visible => update-state();
+    changed widget-id => update-state();
+    // changed bridge-connected => construct();
+
+    init => update-state();
     exited => WidgetContainerState.exit-page();
 }
 
@@ -124,19 +146,13 @@ export component WidgetContainer {
                 changed has-view => attempt-focus();
                 changed domain-active => attempt-focus();
 
-                init => {
-                    if i == 0 && domain-active {
-                        i-focus.focus();
-                    }
-                }
-
                 Text {
                     color: white;
                     text: parent.page-number + 1;
                 }
 
                 i-focus := ControlledFocusScope {
-                    init-focus: false;
+                    init-focus: i == 0 && domain-active;
 
                     focus-gained => {
                         if !has-view { // prevent dirty-ing the number and causing recursion
@@ -163,12 +179,12 @@ export component WidgetContainer {
                     easing: ease-in-out;
                 }
 
-                car-display-widget := Widget {
-                    CarDisplayWidget {
-                        height: 100%;
-                        width: 100%;
-                    }
-                }
+                // car-display-widget := Widget {
+                //     CarDisplayWidget {
+                //         height: 100%;
+                //         width: 100%;
+                //     }
+                // }
 
                 road-indicator-widget := Widget {
                     RoadIndicatorWidget {

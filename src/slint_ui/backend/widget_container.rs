@@ -11,12 +11,14 @@ struct WidgetState {
 
 fn recompute_page_numbers(handle_weak: Weak<App>, widgets: &mut [WidgetState]) {
     let mut page = 0;
+
     for widget in widgets.iter_mut() {
         if widget.visible {
             widget.page_number = page;
             page += 1;
         }
     }
+
     if let Some(handle) = handle_weak.upgrade() {
         let state = handle.global::<WidgetContainerState>();
         state.set_num_pages(widgets.len() as i32);
@@ -100,5 +102,7 @@ pub fn bridge(handle_weak: Weak<App>) {
                 }
             });
         }
+
+        // state.invoke_connect_bridge();
     }
 }
