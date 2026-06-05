@@ -44,11 +44,6 @@ export global WidgetContainerState {
         self.focused-page = -1;
     }
 
-    // TRACKING: https://github.com/slint-ui/slint/issues/11673
-    // public function connect-bridge() {
-    //     self.bridge-connected = true;
-    // }
-
     callback reset();
     pure callback create-widget() -> int;
     pure callback get-page-number-of-id(id: int) -> int;
@@ -69,9 +64,6 @@ component Widget inherits FocusDomain {
     height: 100%;
     width: 100%;
 
-    // private property <bool> bridge-connected: WidgetContainerState.bridge-connected;
-    // private property <bool> constructed: false;
-
     changed has-focus => {
         if focusable && has-focus {
             self.no-graceful-return = true;
@@ -85,16 +77,8 @@ component Widget inherits FocusDomain {
         WidgetContainerState.set-widget-visible(self.widget-id, self.visible);
     }
 
-    // function construct() {
-    //     if bridge-connected && !constructed {
-    //         self.widget-id = WidgetContainerState.create-widget();
-    //         self.constructed = true;
-    //     }
-    // }
-
     changed visible => update-state();
     changed widget-id => update-state();
-    // changed bridge-connected => construct();
 
     init => update-state();
     exited => WidgetContainerState.exit-page();

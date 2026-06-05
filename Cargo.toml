@@ -16,7 +16,7 @@
     slcan       = ["dep:slcan", "dep:serial"]
 
 [dependencies]
-    slint        = { version = "1.16.1", default-features = false, features = ["compat-1-2", "std"] }
+    slint        = { git = "https://github.com/slint-ui/slint.git", default-features = false, features = ["compat-1-2", "std"] }
     async-compat = "*"
     rand         = "*"
     pastey       = "*"
@@ -44,7 +44,7 @@
     socketcan = "*"
 
 [build-dependencies]
-    slint-build    = { version = "1.16.1" }
+    slint-build    = { git = "https://github.com/slint-ui/slint.git" }
     dbc-codegen    = { git = "https://github.com/bryce-happel-walton/dbc-codegen.git", branch = "main", features = ["std"] } #* https://github.com/technocreatives/dbc-codegen/pull/97
     syn            = "*"
     walkdir        = "*"
