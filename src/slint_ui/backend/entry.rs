@@ -47,6 +47,5 @@ pub fn make_app() -> Result<App, Box<dyn std::error::Error>> {
         });
     }
 
-    app_window.show()?;
     Ok(app_window)
 }

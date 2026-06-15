@@ -52,6 +52,11 @@ export global DebugSettings {
     callback update-extra-debug-info(bool);
 }
 
+export global WidgetSettings {
+    in-out property <bool> can-display-widget-enabled: false;
+    callback update-can-display-widget-enabled(bool);
+}
+
 export global HardwareBackendData {
     in property <int> adc-val;
 
@@ -69,7 +74,7 @@ export global SystemInfo {
     in property <int> fps;
 }
 
-export component ModuleDebug inherits VerticalLayout {
+export component ApplicationStateDebugModule inherits VerticalLayout {
     Text {
         color: purple;
         text: "ApplicationState";

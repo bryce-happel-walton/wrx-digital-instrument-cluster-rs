@@ -1,0 +1,68 @@
+import {
+    FocusStateDebugModule,
+} from "@lib/core.slint";
+import {
+    ApplicationStateDebugModule,
+    BackendDebugModule,
+    SystemInfoDebugModule,
+} from "@lib/state.slint";
+import {
+    WidgetContainerStateDebugModule,
+} from "@widgets/widget_container.slint";
+
+export component DebugOverlay {
+    x: 0;
+    y: 20px;
+    z: 999999;
+
+    HorizontalLayout {
+        alignment: start;
+        spacing: 20px;
+
+        Rectangle {
+            background: black.transparentize(20%);
+            VerticalLayout {
+                alignment: start;
+
+                Text {
+                    color: purple;
+                    text: "UI DEBUG";
+                }
+
+                ApplicationStateDebugModule { }
+
+                FocusStateDebugModule { }
+
+                WidgetContainerStateDebugModule { }
+            }
+        }
+
+        Rectangle {
+            background: black.transparentize(20%);
+            VerticalLayout {
+                alignment: start;
+
+                Text {
+                    color: darkviolet;
+                    text: "BACKEND DEBUG";
+                }
+
+                BackendDebugModule { }
+            }
+        }
+
+        Rectangle {
+            background: black.transparentize(20%);
+            VerticalLayout {
+                alignment: start;
+
+                Text {
+                    color: yellowgreen;
+                    text: "SYSTEM DEBUG";
+                }
+
+                SystemInfoDebugModule { }
+            }
+        }
+    }
+}

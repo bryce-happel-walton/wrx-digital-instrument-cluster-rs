@@ -13,8 +13,8 @@ import { RSTypeResolver } from "@lib/rs.slint";
 import {
     DebugMenuWidget,
     DebugMenuState,
-    DebugOverlay,
 } from "@widgets/debug.slint";
+import { DebugOverlay } from "debug_overlay.slint";
 import { SettingsMenu, SettingsPageTarget } from "@widgets/settings.slint";
 import {
     SBoundInt,
@@ -30,6 +30,7 @@ import {
     AccessibilitySettings,
     DebugSettings,
     GeneralSettings,
+    WidgetSettings,
 } from "@lib/state.slint";
 import {
     ThemeLoader,
@@ -61,9 +62,32 @@ import "@fonts/Montserrat/fonts/ttf/Montserrat-Thin.ttf";
 import "@fonts/JetBrainsMono/fonts/ttf/JetBrainsMono-Regular.ttf";
 
 // Export types
-export { SFDataParameter, SIDataParameter, SBDataParameter, SStrDataParameter, SUnitSystem, SCanFrameDisplay, SettingsMenuItemType, SettingsMenuItem, DerivedParamType, ClusterTheme, SBoundInt, SettingsPageTarget }
+export {
+    SFDataParameter,
+    SIDataParameter,
+    SBDataParameter,
+    SStrDataParameter,
+    SUnitSystem,
+    SCanFrameDisplay,
+    SettingsMenuItemType,
+    SettingsMenuItem,
+    DerivedParamType,
+    ClusterTheme,
+    SBoundInt,
+    SettingsPageTarget,
+}
 // Export globals
-export { SCarData, DebugMenuState, GlobalThemeData, CanDisplay, WidgetContainerState, SettingsLayout, RSTypeResolver, LangResolver, BackendLib }
+export {
+    SCarData,
+    DebugMenuState,
+    GlobalThemeData,
+    CanDisplay,
+    WidgetContainerState,
+    SettingsLayout,
+    RSTypeResolver,
+    LangResolver,
+    BackendLib,
+}
 export * from "@lib/state.slint";
 
 export component App inherits Window {

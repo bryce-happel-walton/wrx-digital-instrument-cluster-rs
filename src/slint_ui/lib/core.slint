@@ -41,10 +41,7 @@ export struct ItemBox {
     height: length,
     border-radius: length,
 }
-export enum ForceFailedReason {
-    FocusDisabled,
-    Stolen
-}
+export enum ForceFailedReason { FocusDisabled, Stolen }
 
 export global FocusState {
     in property <length> focus-highlight-size: GlobalSizing.focus-box-border;
@@ -157,6 +154,26 @@ export component DebugHighlight {
         background: transparent;
         border-width: 2px;
         border-color: purple;
+    }
+}
+
+export component DebugInfo inherits Rectangle {
+    clip: true;
+    width: 100%;
+    height: 100%;
+    visible: DebugSettings.debug-mode && DebugSettings.extra-debug-info;
+}
+
+export component DebugInfoLabel inherits Rectangle {
+    in property <string> text <=> i-text.text;
+
+    background: black.transparentize(90%);
+    border-radius: 2px;
+
+    i-text := Text {
+        horizontal-alignment: left;
+        font-family: "JetBrains Mono";
+        color: yellow;
     }
 }
 
@@ -346,6 +363,20 @@ export component ControlledFocusScope inherits Rectangle {
 
     DebugHighlight {
         background: orange;
+    }
+
+    DebugInfo {
+        VerticalLayout {
+            alignment: end;
+
+            DebugInfoLabel {
+                text: focus-id;
+            }
+
+            DebugInfoLabel {
+                text: has-focus ? "focused" : "unfocused";
+            }
+        }
     }
 }
 
@@ -1204,7 +1235,7 @@ export component TestComponentSuite inherits VerticalLayout {
     }
 }
 
-export component ModuleDebug inherits VerticalLayout {
+export component FocusStateDebugModule inherits VerticalLayout {
     Text {
         color: purple;
         text: "FocusState";

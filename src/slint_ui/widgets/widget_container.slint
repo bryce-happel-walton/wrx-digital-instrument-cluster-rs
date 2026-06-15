@@ -20,23 +20,24 @@ import {
 import { CanDisplayWidget } from "@widgets/can_display.slint";
 import { CarDisplayWidget } from "@widgets/car_display.slint";
 import { GlobalAnimation, DebugHighlight } from "@lib/core.slint";
+import { DebugInfo, DebugInfoLabel } from "../lib/core.slint";
+import { WidgetSettings } from "../lib/state.slint";
 
 export global WidgetContainerState {
     in-out property <int> current-page: 0;
     in-out property <int> focused-page: -1; // -1 if not entered
     in-out property <int> num-pages: 0;
     in-out property <int> num-visible-pages: 0;
-    out property <bool> bridge-connected: false;
+    in-out property <bool> domain-active: false;
 
-    public function change-page(to-page: int) {
-        if to-page != current-page {
-            current-page = to-page;
-            self.exit-page();
-        }
+    public function change-page(to-page-number: int) {
+        current-page = to-page-number;
+        self.exit-page();
     }
 
-    public function focus-page(to-page: int) {
-        self.change-page(to-page);
+    // TODO: this is displaying unexpected behavior. self.focused-page does not appear to be changing, even though we are entering the widget
+    public function focus-page(to-page-number: int) {
+        self.change-page(to-page-number);
         self.focused-page = self.current-page;
     }
 
@@ -46,23 +47,33 @@ export global WidgetContainerState {
 
     callback reset();
     pure callback create-widget() -> int;
+    pure callback create-widget-force-id(id: int) -> int;
     pure callback get-page-number-of-id(id: int) -> int;
-    callback set-widget-visible(id: int, bool);
+    callback set-widget-visible(id: int, visible: bool);
     pure callback get-widget-visible(id: int) -> bool;
 }
 
 component Widget inherits FocusDomain {
     in-out property <bool> focusable: false;
     in property <image> icon: @image-url("@svg/abs-warning-light.svg");
-    out property <int> page-number: WidgetContainerState.get-page-number-of-id(self.widget-id);
     out property <int> widget-id: WidgetContainerState.create-widget();
-    out property <bool> has-target: WidgetContainerState.current-page == self.widget-id; // this widget is currently visible to the user
-    out property <bool> has-focus: WidgetContainerState.focused-page == self.widget-id; // the user is currently interacting with this widget
+    out property <int> page-number: WidgetContainerState.get-page-number-of-id(self.widget-id);
+    out property <bool> has-target: WidgetContainerState.current-page == self.page-number; // this widget is currently visible to the user
+    out property <bool> has-focus: WidgetContainerState.focused-page == self.page-number; // the user is currently interacting with this widget
+    private property <int> redraw: WidgetContainerState.num-pages;
+
+    private property <length> spacing: 4px;
 
     force-exit-strategy: self.focusable;
     force-focus: false;
     height: 100%;
     width: 100%;
+    x: (self.page-number * self.width) - (WidgetContainerState.current-page * self.width) - (self.spacing * WidgetContainerState.current-page);
+
+    animate x {
+        duration: GlobalAnimation.page-duration;
+        easing: ease-in-out;
+    }
 
     changed has-focus => {
         if focusable && has-focus {
@@ -74,14 +85,36 @@ component Widget inherits FocusDomain {
     }
 
     function update-state() {
+        self.page-number = WidgetContainerState.get-page-number-of-id(self.widget-id);
         WidgetContainerState.set-widget-visible(self.widget-id, self.visible);
     }
 
+    changed redraw => update-state();
     changed visible => update-state();
-    changed widget-id => update-state();
+    changed page-number => update-state();
 
     init => update-state();
     exited => WidgetContainerState.exit-page();
+
+    @children
+
+    DebugInfo {
+        VerticalLayout {
+            alignment: start;
+
+            DebugInfoLabel {
+                text: widget-id + ", " + page-number;
+            }
+
+            DebugInfoLabel {
+                text: "target: " + (has-target ? "true" : "false");
+            }
+
+            DebugInfoLabel {
+                text: "focus: " + (has-focus ? "true" : "false");
+            }
+        }
+    }
 }
 
 component FocusableWidget inherits Widget {
@@ -104,16 +137,19 @@ export component WidgetContainer {
             force-exit-strategy: false;
             force-focus: true;
 
+            changed domain-active => { WidgetContainerState.domain-active = self.domain-active }
+
             nav-front-forward => WidgetContainerState.change-page(0);
-            nav-end-backward => WidgetContainerState.change-page(WidgetContainerState.num-pages - 1);
+            nav-end-backward => WidgetContainerState.change-page(WidgetContainerState.num-visible-pages - 1);
 
             for i in WidgetContainerState.num-pages: Rectangle {
                 private property <int> page-number: WidgetContainerState.get-page-number-of-id(i);
-                private property <bool> has-view: WidgetContainerState.current-page == i;
-                private property <bool> domain-active: center-widget-container-indicator.domain-active;
+                private property <bool> has-view: WidgetContainerState.current-page == self.page-number;
+                private property <bool> domain-active: WidgetContainerState.domain-active;
                 private property <length> item-size: parent.height;
                 private property <length> spacing: FocusState.focus-highlight-size;
                 private property <length> total-width: WidgetContainerState.num-visible-pages * (item-size + spacing) - spacing;
+                private property <int> redraw: WidgetContainerState.num-visible-pages;
 
                 height: 100%;
                 width: self.height;
@@ -127,24 +163,42 @@ export component WidgetContainer {
                     }
                 }
 
+                function update-state() {
+                    self.page-number = WidgetContainerState.get-page-number-of-id(i);
+                    self.visible = WidgetContainerState.get-widget-visible(i);
+                }
+
+                changed redraw => update-state();
                 changed has-view => attempt-focus();
                 changed domain-active => attempt-focus();
+                changed page-number => attempt-focus();
 
                 Text {
                     color: white;
                     text: parent.page-number + 1;
                 }
 
+                DebugInfo {
+                    VerticalLayout {
+                        alignment: start;
+
+                        DebugInfoLabel {
+                            text: i + ", " + page-number;
+                        }
+                    }
+                }
+
                 i-focus := ControlledFocusScope {
-                    init-focus: i == 0 && domain-active;
+                    enabled: parent.visible;
+                    init-focus: page-number == 0 && domain-active;
 
                     focus-gained => {
                         if !has-view { // prevent dirty-ing the number and causing recursion
-                            WidgetContainerState.change-page(i);
+                            WidgetContainerState.change-page(page-number);
                         }
                     }
 
-                    activated => WidgetContainerState.focus-page(i);
+                    activated => WidgetContainerState.focus-page(page-number);
                 }
             }
         }
@@ -155,84 +209,101 @@ export component WidgetContainer {
 
             clip: true;
 
-            center-widget-container-layout := HorizontalLayout {
-                x: (-WidgetContainerState.current-page * self.width) - (self.spacing * WidgetContainerState.current-page);
+            road-indicator-widget := Widget {
+                init => WidgetContainerState.change-page(self.page-number);
 
-                animate x {
-                    duration: GlobalAnimation.page-duration;
-                    easing: ease-in-out;
+                RoadIndicatorWidget {
+                    height: 100%;
+                    width: 100%;
                 }
+            }
 
-                // car-display-widget := Widget {
-                //     CarDisplayWidget {
-                //         height: 100%;
-                //         width: 100%;
-                //     }
-                // }
+            settings-menu-widget := FocusableWidget {
+                nav-front-forward => settings-button.focus();
 
-                road-indicator-widget := Widget {
-                    RoadIndicatorWidget {
-                        height: 100%;
-                        width: 100%;
-                    }
-                }
+                HorizontalLayout {
+                    alignment: center;
+                    padding: 20px;
 
-                settings-menu-widget := FocusableWidget {
-                    nav-front-forward => settings-button.focus();
-
-                    HorizontalLayout {
+                    VerticalLayout {
                         alignment: center;
-                        padding: 20px;
 
-                        VerticalLayout {
-                            alignment: center;
+                        Rectangle {
+                            settings-button := Button {
+                                text: "Settings";
 
-                            Rectangle {
-                                settings-button := Button {
-                                    text: "Settings";
-
-                                    activated => {
-                                        ApplicationState.settings-menu-visible = !ApplicationState.settings-menu-visible;
-                                    }
+                                activated => {
+                                    ApplicationState.settings-menu-visible = !ApplicationState.settings-menu-visible;
                                 }
                             }
                         }
                     }
                 }
+            }
 
-                FocusableWidget {
-                    nav-front-forward => FocusState.force-focus(can-display-widget.first-focus-id);
-                    nav-end-backward => FocusState.force-focus(can-display-widget.last-focus-id);
+            can-display-widget := FocusableWidget {
+                visible: WidgetSettings.can-display-widget-enabled;
 
-                    can-display-widget := CanDisplayWidget {
-                        running: parent.has-focus;
-                        height: 100%;
-                        width: 100%;
-                    }
+                nav-front-forward => FocusState.force-focus(i-widget.first-focus-id);
+                nav-end-backward => FocusState.force-focus(i-widget.last-focus-id);
 
-                    if !self.has-focus: Rectangle {
-                        height: 80%;
-                        width: 80%;
-
-                        background: black.transparentize(5%);
-                        Text {
-                            text: "Enter to run";
-                            font-size: 25px;
-                        }
-                    }
+                i-widget := CanDisplayWidget {
+                    running: parent.has-focus;
+                    height: 100%;
+                    width: 100%;
                 }
 
-                if DebugSettings.debug-mode: FocusableWidget {
-                    nav-front-forward => debug-menu-widget.focus();
+                if !self.has-focus: Rectangle {
+                    height: 80%;
+                    width: 80%;
 
-                    VerticalLayout {
-                        debug-menu-widget := DebugMenuWidget {
-                            height: 100%;
-                            width: 100%;
-                        }
+                    background: black.transparentize(10%);
+                    Text {
+                        text: "Enter to run";
+                        font-size: 25px;
+                    }
+                }
+            }
+
+            debug-mode-widget := FocusableWidget {
+                visible: DebugSettings.debug-mode;
+
+                nav-front-forward => debug-menu-widget.focus();
+
+                VerticalLayout {
+                    debug-menu-widget := DebugMenuWidget {
+                        height: 100%;
+                        width: 100%;
                     }
                 }
             }
         }
+    }
+}
+
+export component WidgetContainerStateDebugModule inherits VerticalLayout {
+    Text {
+        color: purple;
+        text: "WidgetContainerState";
+    }
+
+    Text {
+        color: white;
+        text: "current-page: " + WidgetContainerState.current-page;
+    }
+
+    Text {
+        color: white;
+        text: "focused-page: " + WidgetContainerState.focused-page;
+    }
+
+    Text {
+        color: white;
+        text: "num-pages: " + WidgetContainerState.num-pages;
+    }
+
+    Text {
+        color: white;
+        text: "num-visible-pages: " + WidgetContainerState.num-visible-pages;
     }
 }

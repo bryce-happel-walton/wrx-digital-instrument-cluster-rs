@@ -43,10 +43,13 @@ pub static BIN_ARGS: LazyLock<ArgMatches> = LazyLock::new(|| {
             clap::arg!(--cli "Enable internal cli")
                 .required(false),
             #[cfg(debug_assertions)]
-            clap::arg!(--highlight "Enables UI highlights")
+            clap::arg!(--debug_highlight "Enables UI highlights")
+                .required(false),
+                #[cfg(debug_assertions)]
+            clap::arg!(--debug_info "Enables UI extra-debug-info")
                 .required(false),
             #[cfg(debug_assertions)]
-            clap::arg!(--no_overlay "Disables debug overlay")
+            clap::arg!(--debug_no_overlay "Disables debug overlay")
                 .required(false),
             ])
         .get_matches()
@@ -64,8 +67,9 @@ crate::parameter_struct! {GlobalState {
         virtual_cluster: bool,
 
         [cfg!(debug_assertions)] debug {
-            debug_highlights: bool = get_debug_bin_arg("highlight"),
-            debug_no_overlay: bool = get_debug_bin_arg("no_overlay"),
+            debug_highlights: bool = get_debug_bin_arg("debug_highlight"),
+            debug_no_overlay: bool = get_debug_bin_arg("debug_no_overlay"),
+            extra_debug_info: bool = get_debug_bin_arg("debug_info"),
             debug_cli: bool = get_debug_bin_arg("cli"),
         },
     },

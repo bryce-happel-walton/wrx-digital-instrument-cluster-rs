@@ -1,22 +1,7 @@
-import { GridBox } from "std-widgets.slint";
-
 import {
-    ModuleDebug as FocusDebug,
     Button,
-    ComboBox,
-    Slider,
-    ToggleBox,
     TestComponentSuite,
 } from "@lib/core.slint";
-import { SCarData } from "@gen/data/car_data.slint";
-import {
-    ModuleDebug as ApplicationStateDebug,
-    BackendDebugModule,
-    SystemInfoDebugModule,
-    DebugSettings,
-    ApplicationState,
-} from "@lib/state.slint";
-
 
 export global DebugMenuState {
     callback debug-suspend();
@@ -51,60 +36,5 @@ export component DebugMenuWidget {
         }
 
         TestComponentSuite { }
-    }
-}
-
-export component DebugOverlay {
-    x: 0;
-    y: 20px;
-    z: 999999;
-
-    HorizontalLayout {
-        alignment: start;
-        spacing: 20px;
-
-        Rectangle {
-            background: black.transparentize(20%);
-            VerticalLayout {
-                alignment: start;
-
-                Text {
-                    color: purple;
-                    text: "UI DEBUG";
-                }
-
-                ApplicationStateDebug { }
-
-                FocusDebug { }
-            }
-        }
-
-        Rectangle {
-            background: black.transparentize(20%);
-            VerticalLayout {
-                alignment: start;
-
-                Text {
-                    color: darkviolet;
-                    text: "BACKEND DEBUG";
-                }
-
-                BackendDebugModule { }
-            }
-        }
-
-        Rectangle {
-            background: black.transparentize(20%);
-            VerticalLayout {
-                alignment: start;
-
-                Text {
-                    color: yellowgreen;
-                    text: "SYSTEM DEBUG";
-                }
-
-                SystemInfoDebugModule { }
-            }
-        }
     }
 }

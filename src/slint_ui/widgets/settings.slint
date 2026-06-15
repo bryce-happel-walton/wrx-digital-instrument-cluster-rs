@@ -22,6 +22,7 @@ import {
     GlobalAnimation,
     Slider,
     GlobalSizing,
+    DebugInfo,
 } from "../lib/core.slint";
 import { AboutSlint } from "std-widgets.slint";
 
@@ -43,7 +44,7 @@ export enum DerivedParamType {
     Trigger,
 }
 
-@rust-attr(derive(strum::VariantArray, serde::Serialize, serde::Deserialize))
+@ rust-attr (derive(strum::VariantArray, serde::Serialize, serde::Deserialize))
 export enum SettingsPageTarget {
     None,
     Attributions,
@@ -185,23 +186,25 @@ component TypedSettingBar inherits SettingBar {
         }
     }
 
-    if DebugSettings.debug-mode && DebugSettings.extra-debug-info: VerticalLayout {
-        Text {
-            color: tan;
-            text: (readonly ? "readonly " : "") + SettingsLayout.stringify-derived-param-type(item.param-type-derived);
-            horizontal-alignment: TextHorizontalAlignment.right;
-        }
+    DebugInfo {
+        VerticalLayout {
+            Text {
+                color: tan;
+                text: (readonly ? "readonly " : "") + SettingsLayout.stringify-derived-param-type(item.param-type-derived);
+                horizontal-alignment: TextHorizontalAlignment.right;
+            }
 
-        Text {
-            color: tan;
-            text: item.param-type;
-            horizontal-alignment: TextHorizontalAlignment.right;
-        }
+            Text {
+                color: tan;
+                text: item.param-type;
+                horizontal-alignment: TextHorizontalAlignment.right;
+            }
 
-        Text {
-            color: tan;
-            text: item.param-path;
-            horizontal-alignment: TextHorizontalAlignment.right;
+            Text {
+                color: tan;
+                text: item.param-path;
+                horizontal-alignment: TextHorizontalAlignment.right;
+            }
         }
     }
 
@@ -516,19 +519,21 @@ export component SettingsMenu inherits FocusDomain {
     nav-front-forward => FocusState.force-focus(layout.first-focus-id);
     nav-end-backward => FocusState.force-focus(layout.last-focus-id);
 
-    if DebugSettings.debug-mode && DebugSettings.extra-debug-info: VerticalLayout {
-        x: root.width - self.width;
-        y: root.height - self.height;
-        alignment: end;
+    DebugInfo {
+        VerticalLayout {
+            x: root.width - self.width;
+            y: root.height - self.height;
+            alignment: end;
 
-        Text {
-            color: white;
-            text: layout.first-focus-id;
-        }
+            Text {
+                color: white;
+                text: layout.first-focus-id;
+            }
 
-        Text {
-            color: white;
-            text: layout.last-focus-id;
+            Text {
+                color: white;
+                text: layout.last-focus-id;
+            }
         }
     }
 

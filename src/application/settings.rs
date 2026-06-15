@@ -63,6 +63,10 @@ crate::parameter_struct! {Settings {
             selection_box_thickness: Bound<i32> = Bound::new(2, 1..=10, 1),
         },
 
+        widgets {
+            can_display_widget_enabled: bool = false,
+        },
+
         theme {
             selected_theme: ClusterTheme = ClusterTheme::Default,
         },
@@ -229,6 +233,11 @@ impl Settings {
                 .debug
                 .debug_overlay_enabled
                 .set_value(!GLOBAL_STATE.bin_args.debug.debug_no_overlay.value());
+
+            self.developer
+                .debug
+                .extra_debug_info
+                .set_value(GLOBAL_STATE.bin_args.debug.extra_debug_info.value());
 
             // if BIN_ARGS.get_flag("cli") {
             //     tokio::spawn(cli_mode());

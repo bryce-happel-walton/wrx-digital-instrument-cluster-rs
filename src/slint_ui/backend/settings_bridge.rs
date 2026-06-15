@@ -3,7 +3,7 @@ use crate::data::parameters::{Bound, Node};
 use crate::slint_generatedApp::{
     AccessibilitySettings, App, ApplicationState, AttributionItem, DebugSettings, DerivedParamType,
     GeneralSettings, GlobalThemeData, SBoundInt, SettingsLayout, SettingsMenuItem,
-    SettingsMenuItemType, SystemInfo,
+    SettingsMenuItemType, SystemInfo, WidgetSettings,
 };
 
 use pastey::paste;
@@ -67,6 +67,7 @@ pub fn bridge(handle_weak: Weak<App>) {
             bind!(ApplicationState.running_simulation <=> SETTINGS.developer.simulation.running_simulation);
             bind!(ApplicationState.running_can <=> SETTINGS.developer.can.running_can);
             bind!(GeneralSettings.disable_hill_assist <=> SETTINGS.user.general.disable_hill_assist_warning);
+            bind!(WidgetSettings.can_display_widget_enabled <=> SETTINGS.user.widgets.can_display_widget_enabled);
             bind!(GlobalThemeData.current_theme <=> SETTINGS.user.theme.selected_theme);
             bind!(AccessibilitySettings.animations_enabled <=> SETTINGS.user.accessibility.animations_enabled);
             bind!(AccessibilitySettings.accessible_switches <=> SETTINGS.user.accessibility.accessible_switches);

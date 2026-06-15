@@ -255,6 +255,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
     }
 
+    if GLOBAL_STATE.bin_args.debug.debug_cli.value() {
+        tokio::spawn(cli_mode());
+    }
+
     ui.run()?;
 
     // send shutdown after ui has closed
@@ -325,7 +329,7 @@ async fn cli_mode() {
                     println!("\nlist");
                     println!(
                         "    parameters     => list the layout of {}",
-                        stringify!(CONFIG_MANAGER)
+                        stringify!(SETTINGS)
                     );
                     println!("    dependencies   => list the dependencies of the crate");
 
@@ -335,14 +339,14 @@ async fn cli_mode() {
 
                     println!(
                         "\nset_param    => set the value of any `<Parameter>` in `{}`",
-                        stringify!(CONFIG_MANAGER)
+                        stringify!(SETTINGS)
                     );
                     println!("    usage    |  set_param <path> <value>");
                     println!("  example    |  set_param user.general.unit_system uscs");
 
                     println!(
                         "\nget_param    => get the value of any `<Parameter>` in `{}`",
-                        stringify!(CONFIG_MANAGER)
+                        stringify!(SETTINGS)
                     );
                     println!("    usage    |  get_param <path>");
                     println!("  example    |  get_param user.general.unit_system");
