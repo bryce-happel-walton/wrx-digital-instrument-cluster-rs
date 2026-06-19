@@ -352,17 +352,29 @@ component SettingsMenuLayoutComponent inherits VerticalLayout {
     spacing: 4px;
 
     out property <int> first-focus-id: -1;
-    out property <int> last-focus-id;
+    out property <int> last-focus-id: page-back.focus-id;
 
-    property <[SettingsMenuItem]> items;
-    property <string> path: "Settings";
-    property <string> parent-path: "Settings";
+    private property <[SettingsMenuItem]> items;
+    private property <string> path: "Settings";
+    private property <string> parent-path: path;
 
     function update-layout() {
         self.items = SettingsLayout.get-page-layout(self.path);
         self.parent-path = SettingsLayout.get-page-parent(self.path);
-        FocusState.force-focus(self.first-focus-id);
     }
+
+    function correct-layout-update-navigation-ids() {
+        if self.items.length == 0 {
+            FocusState.force-focus(self.last-focus-id);
+            self.first-focus-id = self.last-focus-id; // TODO: unexpectedly, this must be changed AFTER the last-focus-id is focused, or else there is some kind of race condition
+        } else {
+            FocusState.force-focus(self.first-focus-id);
+        }
+    }
+
+    changed first-focus-id => correct-layout-update-navigation-ids();
+    changed last-focus-id => correct-layout-update-navigation-ids();
+    changed items => correct-layout-update-navigation-ids();
 
     init => update-layout();
 
@@ -421,10 +433,6 @@ component SettingsMenuLayoutComponent inherits VerticalLayout {
             item-type: SettingsMenuItemType.PageBack,
             param-type-derived: DerivedParamType.Page,
         };
-
-        changed focus-id => {
-            root.last-focus-id = self.focus-id;
-        }
 
         activated => {
             if (path == "") || (path == "Settings") {
@@ -540,11 +548,7 @@ export component SettingsMenu inherits FocusDomain {
     HorizontalLayout {
         alignment: center;
 
-        layout := SettingsMenuLayoutComponent {
-            changed first-focus-id => {
-                root.focus();
-            }
-        }
+        layout := SettingsMenuLayoutComponent {}
     }
 
     SpecialPageLoader {

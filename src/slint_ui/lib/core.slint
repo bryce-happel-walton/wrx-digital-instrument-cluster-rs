@@ -159,8 +159,6 @@ export component DebugHighlight {
 
 export component DebugInfo inherits Rectangle {
     clip: true;
-    width: 100%;
-    height: 100%;
     visible: DebugSettings.debug-mode && DebugSettings.extra-debug-info;
 }
 
@@ -256,7 +254,6 @@ export component ControlledFocusScope inherits Rectangle {
     out property <bool> has-hover <=> i-touch.has-hover;
     out property <int> focus-id;
 
-    private property <bool> state-attempting-force-focus: FocusState.attempting-force-focus;
     private property <bool> i-forcing-focus: FocusState.attempting-force-focus && (FocusState.force-focus-id == root.focus-id);
     private property <bool> i-last-locked: locked;
 
@@ -310,6 +307,12 @@ export component ControlledFocusScope inherits Rectangle {
         }
     }
 
+    changed has-focus => {
+        if has-focus {
+            update-coords();
+        }
+    }
+
     i-touch := TouchArea {
         enabled: root.enabled;
 
@@ -347,11 +350,10 @@ export component ControlledFocusScope inherits Rectangle {
 
         focus-gained(reason) => {
             if !FocusState.has-focus(root.focus-id) {
-                update-coords();
                 FocusState.set-focus-id(root.focus-id);
                 root.focus-gained(reason);
             }
-            if root.state-attempting-force-focus {
+            if FocusState.attempting-force-focus {
                 if (reason == FocusReason.programmatic) && root.i-forcing-focus {
                     FocusState.force-complete(root.focus-id);
                 } else {
@@ -371,10 +373,6 @@ export component ControlledFocusScope inherits Rectangle {
 
             DebugInfoLabel {
                 text: focus-id;
-            }
-
-            DebugInfoLabel {
-                text: has-focus ? "focused" : "unfocused";
             }
         }
     }
