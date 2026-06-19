@@ -18,7 +18,7 @@ use crate::debug::debug_entry;
 use crate::hardware::hardware_backend::{self, HardwareBackend};
 use crate::slint_ui::backend::{
     backend_lib, can_display, car_data_bridge, entry, hardware_bridge, lang, rs_type_resolver,
-    settings_bridge, widget_container,
+    settings_bridge,
 };
 
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, Pid, ProcessRefreshKind, RefreshKind, System};
@@ -32,8 +32,8 @@ use std::sync::{Arc, LazyLock};
 
 slint::include_modules!();
 
-pub static SHUTDOWN_SIGNAL: LazyLock<Notify> = LazyLock::new(|| Notify::new());
-pub static SHUTDOWN_FINISHED: LazyLock<Notify> = LazyLock::new(|| Notify::new());
+pub(crate) static SHUTDOWN_SIGNAL: LazyLock<Notify> = LazyLock::new(|| Notify::new());
+pub(crate) static SHUTDOWN_FINISHED: LazyLock<Notify> = LazyLock::new(|| Notify::new());
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tokio_runtime = tokio::runtime::Builder::new_multi_thread()
@@ -238,7 +238,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         hardware_bridge::bridge(ui.as_weak(), hardware_backend.clone());
         lang::bridge(ui.as_weak());
         backend_lib::bridge(ui.as_weak());
-        widget_container::bridge(ui.as_weak());
     }
 
     // graceful shutdown

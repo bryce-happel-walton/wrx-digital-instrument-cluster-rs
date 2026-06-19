@@ -11,7 +11,7 @@ const DEFAULT_SL_DEV: &str = "/dev/ttyACM0";
 #[cfg(target_vendor = "apple")]
 const DEFAULT_SL_DEV: &str = "/dev/tty.usbmodem101";
 
-pub static BIN_ARGS: LazyLock<ArgMatches> = LazyLock::new(|| {
+pub(crate) static BIN_ARGS: LazyLock<ArgMatches> = LazyLock::new(|| {
     let conflicting_args = vec![
         "fakedev",
         #[cfg(target_os = "linux")]
