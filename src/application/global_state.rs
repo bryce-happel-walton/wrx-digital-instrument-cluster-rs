@@ -55,7 +55,7 @@ pub static BIN_ARGS: LazyLock<ArgMatches> = LazyLock::new(|| {
         .get_matches()
 });
 
-pub static GLOBAL_STATE: LazyLock<Arc<GlobalState>> = LazyLock::new(|| {
+pub(crate) static GLOBAL_STATE: LazyLock<Arc<GlobalState>> = LazyLock::new(|| {
     let ret = GlobalState::default();
     ret.init();
     Arc::new(ret)

@@ -9,7 +9,7 @@ use embedded_can::Frame;
 use std::str::FromStr;
 use std::sync::{Arc, LazyLock};
 
-pub static CAR_DATA: LazyLock<Arc<CarData>> = crate::LazyLockDefault!();
+pub(crate) static CAR_DATA: LazyLock<Arc<CarData>> = crate::LazyLockDefault!();
 
 macro_rules! __generate_param_unit_system {
     ($unit:path| $system:expr) => {

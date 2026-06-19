@@ -19,7 +19,7 @@ use std::sync::{Arc, LazyLock};
 const CONFIG_NAME: &str = "settings.toml";
 const LOAD_TIMEOUT: Duration = Duration::from_secs(10);
 
-pub static SETTINGS: LazyLock<Arc<Settings>> = LazyLock::new(|| {
+pub(crate) static SETTINGS: LazyLock<Arc<Settings>> = LazyLock::new(|| {
     let ret = Settings::default();
     ret.init();
 
