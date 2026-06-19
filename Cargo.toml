@@ -2,7 +2,7 @@
     name         = "wrx-digital-instrument-cluster-rs"
     description  = "A digital instrument cluster for the 2018 Subaru WRX"
     repository   = "https://github.com/Hentai-Racing/wrx-digital-instrument-cluster-rs"
-    version      = "0.31.4"                                                             # Only 1.0.0 when ALL factory features exist
+    version      = "0.31.5"                                                             # Only 1.0.0 when ALL factory features exist
     authors      = ["Bryce Happel Walton <brycewaltonmail@gmail.com>"]
     edition      = "2024"
     build        = "build.rs"
