@@ -27,40 +27,40 @@ pub fn bridge(handle_weak: Weak<App>) {
         let handle_weak = handle_weak.clone();
         match slint::spawn_local(async_compat::Compat::new(async move {
             macro_rules! bind {
-            {$slint_global:ident.$param:tt <=> $root:ident.$($tail:tt)+} => {{paste!{
-                let handle_weak = handle_weak.clone();
-                let root = $root.clone();
+                {$slint_global:ident.$param:tt <=> $root:ident.$($tail:tt)+} => {{paste!{
+                    let handle_weak = handle_weak.clone();
+                    let root = $root.clone();
 
-                if let Some(handle) = handle_weak.upgrade() {
-                    let g = handle.global::<$slint_global>();
-
-                    g.[<on_update_ $param>](move |value| {
-                        root.$($tail)+.set_value(value.into());
-                    });
-                }
-
-                bind!($slint_global.$param <=| $root.$($tail)+);
-            }}};
-
-            {$slint_global:ident.$param:tt <=| $root:ident.$($tail:tt)+} => {{paste!{
-                let root = $root.clone();
-                if let Some(handle) = handle_weak.upgrade() {
-                    let _= slint::spawn_local(async_compat::Compat::new(async move {
+                    if let Some(handle) = handle_weak.upgrade() {
                         let g = handle.global::<$slint_global>();
-                        let mut watch = root.$($tail)+.watch();
 
-                        loop {
-                            g.[<set_ $param>](root.$($tail)+.value().into());
+                        g.[<on_update_ $param>](move |value| {
+                            root.$($tail)+.set_value(value.into());
+                        });
+                    }
 
-                            select!{
-                                Ok(_) = watch.changed() => {},
-                                else => {break;}
+                    bind!($slint_global.$param <=| $root.$($tail)+);
+                }}};
+
+                {$slint_global:ident.$param:tt <=| $root:ident.$($tail:tt)+} => {{paste!{
+                    let root = $root.clone();
+                    if let Some(handle) = handle_weak.upgrade() {
+                        let _= slint::spawn_local(async_compat::Compat::new(async move {
+                            let g = handle.global::<$slint_global>();
+                            let mut watch = root.$($tail)+.watch();
+
+                            loop {
+                                g.[<set_ $param>](root.$($tail)+.value().into());
+
+                                select!{
+                                    Ok(_) = watch.changed() => {},
+                                    else => {break;}
+                                }
                             }
-                        }
-                    }));
-                }
-            }}};
-        }
+                        }));
+                    }
+                }}};
+            }
 
             // TODO: auto-generate bindings
             bind!(ApplicationState.user_unit <=> SETTINGS.user.general.unit_system);
