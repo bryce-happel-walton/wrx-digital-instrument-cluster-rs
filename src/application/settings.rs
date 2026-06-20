@@ -120,7 +120,7 @@ crate::parameter_struct! {Settings {
 
     about {
         [ro] version: String = format!("{}", DEPENDENCIES.wrx_digital_instrument_cluster_rs),
-        [ro] can_database_version: String = get_dbc_version(),
+        [ro] can_database_version: String = format!("{}", DEPENDENCIES.CAN_database),
         [hidden] slint_version: String = format!("{}", DEPENDENCIES.slint), // hidden because it is accessed within the attributions page
         attributions: PageTrigger = PageTrigger(SettingsPageTarget::Attributions),
     },
@@ -244,20 +244,6 @@ impl Settings {
             // }
         }
     }
-}
-
-fn get_dbc_version() -> String {
-    let mut ret = String::from(crate::can::messages::wrx_2018::VERSION);
-    if cfg!(debug_assertions) {
-        let git_rev = PathBuf::from(env!("OUT_DIR")).join("CAN_database_gitrev");
-        if git_rev.exists() {
-            if let Ok(value) = fs::read_to_string(git_rev) {
-                ret.push_str(&format!(" ({})", value.trim()));
-            }
-        }
-    }
-
-    ret
 }
 
 /// Define a triggerable struct that contains an enum for serde with the UI settings parser

@@ -6335,6 +6335,7 @@ dependencies = [
  "json5",
  "pastey 0.2.3",
  "rand 0.10.1",
+ "regex",
  "resvg",
  "rust-embed",
  "serde",

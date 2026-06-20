@@ -47,6 +47,7 @@
     slint-build    = { version = "1.16.1" }
     dbc-codegen    = { git = "https://github.com/bryce-happel-walton/dbc-codegen.git", branch = "main", features = ["std"] } #* https://github.com/technocreatives/dbc-codegen/pull/97
     syn            = "*"
+    regex          = "*"
     walkdir        = "*"
     cargo_metadata = "*"
     serde_json     = "*"
