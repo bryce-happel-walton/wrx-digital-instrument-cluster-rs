@@ -58,6 +58,7 @@ pub fn bridge(ui: Weak<App>, car_data: Arc<CarData>) {
             let mut unit_system_changed = unit_system_parameter.watch();
             let mut unit_system: UnitSystem = unit_system_parameter.value();
 
+            // TODO: we really should only update these before a frame is drawn, currently many cycles are wasted on updates that are not visible
             loop {
                 {
                     let car_data = car_data.clone();
