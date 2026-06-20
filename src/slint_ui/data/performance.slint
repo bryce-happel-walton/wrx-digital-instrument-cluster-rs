@@ -1,0 +1,55 @@
+import { Performance, ApplicationState } from "@lib/state.slint";
+
+export component PerformanceDebugModule inherits VerticalLayout {
+    Text {
+        color: moccasin;
+        text: "CAN Pipeline";
+    }
+
+    if !ApplicationState.virtual-cluster: Text {
+        color: white;
+        text: "simulator disabled";
+    }
+
+    if ApplicationState.virtual-cluster: VerticalLayout {
+        Text {
+            color: white;
+            text: "CAN sent: " + Performance.can-frames-sent-per-sec + " frames/s";
+        }
+
+        Text {
+            color: white;
+            text: "CAN parsed: " + Performance.can-frames-parsed-per-sec + " frames/s";
+        }
+
+        Text {
+            private property <int> lost-frames: Performance.can-frames-sent-per-sec - Performance.can-frames-parsed-per-sec;
+            color: lost-frames > 0 ? white.mix(red, 50%) : white.mix(green, 50%);
+            text: "Backlog: " + lost-frames + " frames/s";
+        }
+
+        Text {
+            color: Performance.can-frames-lost-total > 0 ? red : white;
+            text: "Lost (total): " + Performance.can-frames-lost-total;
+        }
+
+        HorizontalLayout {
+            spacing: 5px;
+
+            Text {
+                color: white;
+                text: "CAN parse->UI: " + Performance.can-frame-parse-to-ui-latency-us + "us";
+            }
+
+            Text {
+                color: white;
+                text: "|";
+            }
+
+            Text {
+                color: white.mix(red, 50%);
+                text: Performance.can-frame-parse-to-ui-latency-max-us + "us";
+            }
+        }
+    }
+}

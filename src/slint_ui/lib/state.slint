@@ -74,6 +74,14 @@ export global SystemInfo {
     in property <int> fps;
 }
 
+export global Performance {
+    in property <int> can-frames-sent-per-sec;
+    in property <int> can-frames-parsed-per-sec;
+    in property <int> can-frame-parse-to-ui-latency-us;
+    in property <int> can-frame-parse-to-ui-latency-max-us;
+    in property <int> can-frames-lost-total;
+}
+
 export component ApplicationStateDebugModule inherits VerticalLayout {
     Text {
         color: purple;

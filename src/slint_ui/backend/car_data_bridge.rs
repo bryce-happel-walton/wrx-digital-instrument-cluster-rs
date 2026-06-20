@@ -45,42 +45,55 @@ macro_rules! param_convertion_handle {
 
 #[allow(unused)]
 pub fn bridge(ui: Weak<App>, car_data: Arc<CarData>) {
-    macro_rules! bridge {($($param:ident: $type:tt),+ $(,)? ) => {$({
+    macro_rules! bridge {($($param:ident: $type:tt),+ $(,)? ) => {paste!{
         let ui = ui.clone();
         let car_data = car_data.clone();
         tokio::spawn(async move {
-            let mut thread_watch = car_data.$param().watch();
+            $(
+                let mut [<watch_ $param>] = car_data.$param().watch();
+                let mut [<value_ $param>] = car_data.$param().value();
+            )+
+
             let unit_system_parameter = &(SETTINGS.user.general.unit_system);
             let mut unit_system_changed = unit_system_parameter.watch();
             let mut unit_system: UnitSystem = unit_system_parameter.value();
-            let mut value = car_data.$param().value();
 
-            loop { // do-while for initial setting of values, then wait for update events
+            loop {
                 {
                     let car_data = car_data.clone();
                     ui.upgrade_in_event_loop(move |ui| {
                         let ui_car_data = ui.global::<SCarData>();
-                        param_convertion_handle!(car_data, ui_car_data, unit_system, $param: $type = value);
+                        $( param_convertion_handle!(car_data, ui_car_data, unit_system, $param: $type = [<value_ $param>]); )+
                     });
                 }
 
-                select! {
-                    biased; // always check the unit system first
-                    Ok(_) = unit_system_changed.changed() => {
-                        unit_system = *unit_system_changed.borrow_and_update();
-                    },
-                    Ok(_) = thread_watch.changed() => {
-                        value = *thread_watch.borrow_and_update()
-                    },
-                    else => {
-                        // if for any reason one of the watches errors (by being dropped early), break the loop to stop deadlock
-                        // this should never happen, but we cannot not break the entire application if it does
-                        break;
-                    },
-                };
+                loop {
+                    select! {
+                        Ok(_) = unit_system_changed.changed() => {
+                            unit_system = *unit_system_changed.borrow_and_update();
+                            break;
+                        },
+                        $(
+                            Ok(_) = [<watch_ $param>].changed() => {
+                                [<value_ $param>] = *[<watch_ $param>].borrow_and_update();
+                                let car_data = car_data.clone();
+                                let value = [<value_ $param>];
+
+                                #[cfg(debug_assertions)]
+                                let parsed_ns = crate::util::performance::last_parse_instant_ns();
+                                ui.upgrade_in_event_loop(move |ui| {
+                                    let ui_car_data = ui.global::<SCarData>();
+                                    param_convertion_handle!(car_data, ui_car_data, unit_system, $param: $type = value);
+                                    #[cfg(debug_assertions)]
+                                    crate::util::performance::record_ui_latency(parsed_ns);
+                                });
+                            },
+                        )+
+                    };
+                }
             }
         });
-    })*};
+    }}
 }
 
     bridge! {

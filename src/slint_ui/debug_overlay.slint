@@ -6,6 +6,7 @@ import {
     BackendDebugModule,
     SystemInfoDebugModule,
 } from "@lib/state.slint";
+import { PerformanceDebugModule } from "@data/performance.slint";
 import {
     WidgetContainerStateDebugModule,
 } from "@widgets/widget_container.slint";
@@ -62,6 +63,20 @@ export component DebugOverlay {
                 }
 
                 SystemInfoDebugModule { }
+            }
+        }
+
+        Rectangle {
+            background: black.transparentize(20%);
+            VerticalLayout {
+                alignment: start;
+
+                Text {
+                    color: moccasin;
+                    text: "PERFORMANCE DEBUG";
+                }
+
+                PerformanceDebugModule { }
             }
         }
     }

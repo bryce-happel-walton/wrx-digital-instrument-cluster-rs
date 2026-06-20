@@ -2,7 +2,7 @@ use crate::application::settings::{FnTrigger, FnTriggers, PageTrigger, SETTINGS}
 use crate::data::parameters::{Bound, Node};
 use crate::slint_generatedApp::{
     AccessibilitySettings, App, ApplicationState, AttributionItem, DebugSettings, DerivedParamType,
-    GeneralSettings, GlobalThemeData, SBoundInt, SettingsLayout, SettingsMenuItem,
+    GeneralSettings, GlobalThemeData, Performance, SBoundInt, SettingsLayout, SettingsMenuItem,
     SettingsMenuItemType, SystemInfo, WidgetSettings,
 };
 
@@ -84,6 +84,12 @@ pub fn bridge(handle_weak: Weak<App>) {
             bind!(SystemInfo.num_cpus <=| SETTINGS.developer.system_info.num_cpus);
             bind!(SystemInfo.cpu_usage <=| SETTINGS.developer.system_info.cpu_usage);
             bind!(SystemInfo.fps <=| SETTINGS.developer.system_info.fps);
+
+            bind!(Performance.can_frames_sent_per_sec <=| SETTINGS.developer.performance.can_frames_sent_per_sec);
+            bind!(Performance.can_frames_parsed_per_sec <=| SETTINGS.developer.performance.can_frames_parsed_per_sec);
+            bind!(Performance.can_frame_parse_to_ui_latency_us <=| SETTINGS.developer.performance.can_frame_parse_to_ui_latency_us);
+            bind!(Performance.can_frame_parse_to_ui_latency_max_us <=| SETTINGS.developer.performance.can_frame_parse_to_ui_latency_max_us);
+            bind!(Performance.can_frames_lost_total <=| SETTINGS.developer.performance.can_frames_lost_total);
         })) {
             Err(e) => eprintln!("Failure in settings loader: {e}"),
             _ => {}

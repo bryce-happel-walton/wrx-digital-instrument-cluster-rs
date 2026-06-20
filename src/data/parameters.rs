@@ -1,13 +1,11 @@
 use crate::data::units::Unit;
 
-use crossbeam::atomic::AtomicCell;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::sync::watch;
 
 use std::{
     fmt::{self, Debug},
     ops::RangeInclusive,
-    sync::RwLock,
 };
 
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -78,43 +76,35 @@ where
     }
 }
 
-pub struct Parameter<T> {
-    value: RwLock<T>,
-
-    changed: watch::Sender<T>,
-}
+pub struct Parameter<T>(watch::Sender<T>);
 
 impl<T> Parameter<T>
 where
     T: Clone + Default + Serialize + PartialEq,
 {
     pub fn new(value: T) -> Self {
-        let (changed, _) = watch::channel(Default::default());
+        let (changed, _) = watch::channel(value);
 
-        Self {
-            value: RwLock::new(value),
-            changed,
-        }
+        Self(changed)
     }
 
     pub fn value(&self) -> T {
-        self.value.read().unwrap_or_else(|e| e.into_inner()).clone()
+        self.0.borrow().clone()
     }
 
     pub fn set_value(&self, value: T) {
-        let mut this = self.value.write().unwrap_or_else(|e| e.into_inner());
-        if *this != value {
-            *this = value.clone();
-            self.send_changed(value);
-        }
-    }
-
-    fn send_changed(&self, value: T) {
-        self.changed.send_replace(value);
+        self.0.send_if_modified(|current| {
+            if *current != value {
+                *current = value;
+                true
+            } else {
+                false
+            }
+        });
     }
 
     pub fn watch(&self) -> watch::Receiver<T> {
-        self.changed.subscribe()
+        self.0.subscribe()
     }
 }
 
@@ -167,7 +157,6 @@ pub struct DataParameter<T> {
     min: T,
     max: T,
 
-    value: AtomicCell<T>,
     units: Unit,
 
     changed: watch::Sender<T>,
@@ -178,13 +167,12 @@ where
     T: Copy + Default + PartialEq + PartialOrd + Debug,
 {
     pub fn new(min: T, max: T, value: Option<T>, units: Option<Unit>) -> Self {
-        let (changed, _) = watch::channel(Default::default());
+        let (changed, _) = watch::channel(value.unwrap_or_default());
 
         Self {
             min: min,
             max: max,
 
-            value: AtomicCell::new(value.unwrap_or_default()),
             units: units.unwrap_or_default(),
 
             changed,
@@ -192,9 +180,14 @@ where
     }
 
     pub fn set_value(&self, value: T) {
-        if self.value.swap(value) != value {
-            self.send_changed();
-        }
+        self.changed.send_if_modified(|current| {
+            if *current != value {
+                *current = value;
+                true
+            } else {
+                false
+            }
+        });
     }
 
     #[allow(unused)]
@@ -203,7 +196,7 @@ where
     }
 
     pub fn value(&self) -> T {
-        self.value.load()
+        *self.changed.borrow()
     }
 
     #[allow(unused)]
@@ -214,10 +207,6 @@ where
     #[allow(unused)]
     pub fn max(&self) -> T {
         self.max
-    }
-
-    fn send_changed(&self) {
-        self.changed.send_replace(self.value());
     }
 
     pub fn watch(&self) -> watch::Receiver<T> {

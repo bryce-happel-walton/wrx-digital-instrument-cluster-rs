@@ -136,11 +136,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         //         },
                                         //     }
                                     }
-                                    _ => println!("Failed to parse frame {frame:?}: {e:?}"),
+                                    _ => {
+                                        crate::util::performance::record_can_frame_lost();
+                                        println!("Failed to parse frame {frame:?}: {e:?}");
+                                    }
                                 },
-                                _ => println!("Failed to parse frame {frame:?}: {e:?}"),
+                                _ => {
+                                    crate::util::performance::record_can_frame_lost();
+                                    println!("Failed to parse frame {frame:?}: {e:?}");
+                                }
                             },
                         }
+
+                        crate::util::performance::record_can_frame_parsed();
                     };
 
                     // if !mux_context.is_waiting_for_responce() {
@@ -156,6 +164,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     //         }
                     //     }
                     // }
+
+                    tokio::task::yield_now().await;
                 } else {
                     let _ = running_can.watch().wait_for(|v| *v).await;
                 }
@@ -188,8 +198,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     for frame in gen_frames {
                         if running_vcan.value() {
-                            if let Err(e) = backend.write_frame(frame) {
-                                eprintln!("Failed to write simulated frame: {e:?}");
+                            match backend.write_frame(frame) {
+                                Ok(_) => crate::util::performance::record_can_frame_sent(),
+                                Err(e) => {
+                                    crate::util::performance::record_can_frame_lost();
+                                    eprintln!("Failed to write simulated frame: {e:?}");
+                                }
                             }
                         } else {
                             let _ = running_vcan.watch().wait_for(|v| *v).await;
@@ -204,6 +218,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     interval.tick().await;
                 }
             });
+
+            #[cfg(debug_assertions)]
+            tokio::spawn(bridge_performance_metrics());
         }
     }
 
@@ -282,6 +299,37 @@ fn shutdown() {
     save_config();
 
     SHUTDOWN_FINISHED.notify_one();
+}
+
+#[cfg(debug_assertions)]
+async fn bridge_performance_metrics() {
+    let mut last = time::Instant::now();
+    let mut interval = time::interval(Duration::from_millis(500));
+
+    loop {
+        interval.tick().await;
+        let secs = last.elapsed().as_secs_f32();
+        last = time::Instant::now();
+
+        let sample = crate::util::performance::sample(secs);
+
+        let performance = &SETTINGS.developer.performance;
+        performance
+            .can_frames_sent_per_sec
+            .set_value(sample.sent_per_sec);
+        performance
+            .can_frames_parsed_per_sec
+            .set_value(sample.parsed_per_sec);
+        performance
+            .can_frame_parse_to_ui_latency_us
+            .set_value(sample.ui_latency_avg_us);
+        performance
+            .can_frame_parse_to_ui_latency_max_us
+            .set_value(sample.ui_latency_max_us);
+        performance
+            .can_frames_lost_total
+            .set_value(sample.total_frames_lost);
+    }
 }
 
 async fn run_autosave_loop() {

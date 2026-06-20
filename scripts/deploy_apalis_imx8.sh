@@ -7,9 +7,28 @@ cd "$SCRIPT_DIR/.."
 APPLICATION_NAME="wrx-digital-instrument-cluster-rs"
 TARGET="aarch64-unknown-linux-gnu"
 
-# Usage: ./deploy_apalis_imx8.sh [profile] [extra,features]
-PROFILE="${1:-debug}"
-EXTRA_FEATURES="${2:-}"
+# Usage: ./deploy_apalis_imx8.sh [profile] [extra,features] [-- binary args...]
+# Anything after `--` is forwarded to the binary on the board.
+POSITIONAL=()
+BINARY_ARGS=()
+while [[ $# -gt 0 ]]; do
+    if [[ "$1" == "--" ]]; then
+        shift
+        BINARY_ARGS=("$@")
+        break
+    fi
+    POSITIONAL+=("$1")
+    shift
+done
+
+PROFILE="${POSITIONAL[0]:-debug}"
+EXTRA_FEATURES="${POSITIONAL[1]:-}"
+
+# Quote forwarded args so they survive the trip through the remote shell.
+REMOTE_ARGS=""
+for arg in "${BINARY_ARGS[@]}"; do
+    REMOTE_ARGS+=" $(printf '%q' "$arg")"
+done
 
 case "$PROFILE" in
     debug)   PROFILE_DIR="debug" ;;
@@ -22,8 +41,8 @@ esac
 SSH_CONFIG="$SCRIPT_DIR/apalis_imx8_ssh_config"
 BIN_PATH="target/$TARGET/$PROFILE_DIR/$APPLICATION_NAME"
 
-printf "[deploy 1/4] Killing existing process on apalis-board...\n"
-ssh -F "$SSH_CONFIG" -o StrictHostKeyChecking=accept-new apalis-board "killall $APPLICATION_NAME || true" > /dev/null 2>&1
+printf "[deploy 1/4] Stopping weston and killing existing process on apalis-board...\n"
+ssh -F "$SSH_CONFIG" -o StrictHostKeyChecking=accept-new apalis-board "systemctl stop weston || true; killall $APPLICATION_NAME || true" > /dev/null 2>&1
 
 printf "[deploy 2/4] Copying binary to board...\n"
 scp -F "$SSH_CONFIG" -o StrictHostKeyChecking=accept-new "$BIN_PATH" apalis-board:/bin/ 2>/dev/null
@@ -43,10 +62,13 @@ fi
 
 printf "[deploy 4/4] Starting new process on board...\n"
 
+REMOTE_RUN="/bin/$APPLICATION_NAME$REMOTE_ARGS"
+printf "\tLaunching: %s\n" "$REMOTE_RUN"
+
 if [[ "$PROFILE" == "debug" ]]; then
-    ssh -F "$SSH_CONFIG" -o StrictHostKeyChecking=accept-new apalis-board "export WAYLAND_DISPLAY=/run/wayland-0; /bin/$APPLICATION_NAME --cli"
+    ssh -F "$SSH_CONFIG" -o StrictHostKeyChecking=accept-new apalis-board "export WAYLAND_DISPLAY=/run/wayland-0; $REMOTE_RUN"
 else
-    ssh -F "$SSH_CONFIG" -o StrictHostKeyChecking=accept-new apalis-board "export WAYLAND_DISPLAY=/run/wayland-0; nohup /bin/$APPLICATION_NAME --cli > /tmp/$APPLICATION_NAME.log 2>&1 &" > /dev/null 2>&1
+    ssh -F "$SSH_CONFIG" -o StrictHostKeyChecking=accept-new apalis-board "export WAYLAND_DISPLAY=/run/wayland-0; nohup $REMOTE_RUN > /tmp/$APPLICATION_NAME.log 2>&1 &" > /dev/null 2>&1
 fi
 
 printf "\tDone! Deployed profile: $PROFILE\n"

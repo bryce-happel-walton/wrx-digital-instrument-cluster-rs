@@ -102,6 +102,14 @@ crate::parameter_struct! {Settings {
             [ro] cpu_usage: f32,
             [ro] fps: i32,
         },
+
+        performance {
+            [ro] can_frames_sent_per_sec: i32,
+            [ro] can_frames_parsed_per_sec: i32,
+            [ro] can_frame_parse_to_ui_latency_us: i32,
+            [ro] can_frame_parse_to_ui_latency_max_us: i32,
+            [ro] can_frames_lost_total: i32,
+        },
     },
 
     diagnostics {
