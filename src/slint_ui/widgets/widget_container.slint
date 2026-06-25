@@ -25,15 +25,16 @@ import { WidgetSettings } from "../lib/state.slint";
 
 export global WidgetContainerState {
     in-out property <int> current-page: 0;
+    callback update-current-page(int);
+
     in-out property <int> focused-page: -1; // -1 if not entered
 
     out property <int> num-pages: 0;
 
     public function change-page(to-page: int) {
-        if to-page != current-page {
-            current-page = to-page;
-            self.exit-page();
-        }
+        current-page = to-page;
+        update-current-page(to-page);
+        self.exit-page();
     }
 
     public function focus-page(to-page: int) {
@@ -91,6 +92,7 @@ component FocusableWidget inherits Widget {
 export component WidgetContainer {
     forward-focus: center-widget-container-indicator;
 
+    // TODO: initialize to the last page we were on
     init => WidgetContainerState.clear-pages();
 
     VerticalLayout {

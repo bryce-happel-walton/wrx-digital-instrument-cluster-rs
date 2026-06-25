@@ -3,7 +3,7 @@ use crate::data::parameters::{Bound, Node};
 use crate::slint_generatedApp::{
     AccessibilitySettings, App, ApplicationState, AttributionItem, DebugSettings, DerivedParamType,
     GeneralSettings, GlobalThemeData, Performance, SBoundInt, SettingsLayout, SettingsMenuItem,
-    SettingsMenuItemType, SystemInfo, WidgetSettings,
+    SettingsMenuItemType, SystemInfo, WidgetContainerState, WidgetSettings,
 };
 
 use pastey::paste;
@@ -76,6 +76,7 @@ pub fn bridge(handle_weak: Weak<App>) {
             bind!(DebugSettings.debug_highlights <=> SETTINGS.developer.debug.debug_highlights);
             bind!(DebugSettings.debug_overlay_enabled <=> SETTINGS.developer.debug.debug_overlay_enabled);
             bind!(DebugSettings.extra_debug_info <=> SETTINGS.developer.debug.extra_debug_info);
+            bind!(WidgetContainerState.current_page <=> SETTINGS.user.save_state.last_widget_index);
 
             bind!(SystemInfo.total_memory <=| SETTINGS.developer.system_info.total_memory_mb);
             bind!(SystemInfo.used_memory <=| SETTINGS.developer.system_info.used_memory_mb);

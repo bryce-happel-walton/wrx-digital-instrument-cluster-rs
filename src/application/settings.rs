@@ -70,6 +70,10 @@ crate::parameter_struct! {Settings {
         theme {
             selected_theme: ClusterTheme = ClusterTheme::Default,
         },
+
+        [false] save_state {
+            last_widget_index: i32 = 0,
+        },
     },
 
     [cfg!(debug_assertions)] developer {
