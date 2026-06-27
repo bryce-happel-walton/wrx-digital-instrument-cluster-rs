@@ -6246,7 +6246,7 @@ checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
 
 [[package]]
 name = "wrx-digital-instrument-cluster-rs"
-version = "0.32.1"
+version = "0.32.2"
 dependencies = [
  "async-compat",
  "bitvec",
