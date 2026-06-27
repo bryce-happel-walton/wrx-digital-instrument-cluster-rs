@@ -17,8 +17,8 @@ use crate::data::car_data::{CAR_DATA, ParseError};
 use crate::debug::debug_entry;
 use crate::hardware::hardware_backend::{self, HardwareBackend};
 use crate::slint_ui::backend::{
-    backend_lib, can_display, car_data_bridge, entry, hardware_bridge, lang, rs_type_resolver,
-    settings_bridge,
+    backend_lib, can_display, car_data_bridge, hardware_bridge, lang, rs_type_resolver,
+    settings_bridge, state_bridge,
 };
 
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, Pid, ProcessRefreshKind, RefreshKind, System};
@@ -42,7 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
     let _guard = tokio_runtime.enter();
 
-    let ui = entry::make_app()?;
+    let ui = App::new().unwrap();
 
     let can_backend = match CanBackend::new(
         &GLOBAL_STATE.can.selected_interface.value(),
@@ -238,23 +238,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // ui backend bridges
     {
-        let application_state = ui.global::<ApplicationState>();
-        application_state.set_virtual_cluster(GLOBAL_STATE.bin_args.virtual_cluster.value());
-        application_state.set_interface_type(
-            format!(
-                "{}: {}",
-                GLOBAL_STATE.can.selected_interface.value(),
-                GLOBAL_STATE.can.interface_path.value()
-            )
-            .into(),
-        );
-
         rs_type_resolver::bridge(ui.as_weak());
         settings_bridge::bridge(ui.as_weak());
-        car_data_bridge::bridge(ui.as_weak(), CAR_DATA.clone());
+        car_data_bridge::bridge(ui.as_weak());
         hardware_bridge::bridge(ui.as_weak(), hardware_backend.clone());
         lang::bridge(ui.as_weak());
         backend_lib::bridge(ui.as_weak());
+        state_bridge::bridge(ui.as_weak());
     }
 
     // graceful shutdown

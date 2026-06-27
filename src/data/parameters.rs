@@ -195,6 +195,7 @@ where
         self.units
     }
 
+    #[allow(unused)]
     pub fn value(&self) -> T {
         *self.changed.borrow()
     }
