@@ -6,10 +6,12 @@ use crate::data::units::UnitSystem::{self};
 
 use embedded_can::Frame;
 
+use std::cell::RefCell;
+use std::collections::VecDeque;
 use std::str::FromStr;
-use std::sync::{Arc, LazyLock};
+use std::sync::LazyLock;
 
-pub(crate) static CAR_DATA: LazyLock<Arc<CarData>> = crate::LazyLockDefault!();
+pub(crate) static CAR_DATA: LazyLock<CarData> = crate::LazyLockDefault!();
 
 macro_rules! __generate_param_unit_system {
     ($unit:path| $system:expr) => {
@@ -23,57 +25,49 @@ macro_rules! __generate_param_unit_system {
     };
 }
 
-macro_rules! __generate_param_instantiation {
-    (number $msg:path => $param:ident: $type:ty $([$unit:path| $($system:expr)?])? $(= $default_value:expr)?) => {pastey::paste!{
-        DataParameter::new($msg::[<$param:upper _MIN>], $msg::[<$param:upper _MAX>], Some($crate::__default_value!($type| $($default_value)?)), __generate_param_unit_system!($($unit| $($system)?)?))
+macro_rules! __param {
+    (@instantiate number $msg:path => $param:ident: $type:ty $([$unit:path| $($system:expr)?])? $(= $default_value:expr)?) => {pastey::paste!{
+        DataParameter::new($msg::[<$param:upper _MIN>],
+                           $msg::[<$param:upper _MAX>],
+                           Some($crate::__default_value!($type| $($default_value)?)),
+                           __generate_param_unit_system!($($unit| $($system)?)?))
     }};
-    ($msg:path => $param:ident: $type:ty $([$unit:path| $($system:expr)?])? $(= $default_value:expr)?) => {
+    (@instantiate $msg:path => $param:ident: $type:ty $([$unit:path| $($system:expr)?])? $(= $default_value:expr)?) => {
         $crate::__default_value!($type| $($default_value)?)
     };
-}
 
-macro_rules! __param {
     ($msg:path => $param:ident: f32 $([$unit:path| $($system:expr)?])? $(= $default_value:expr)?) => {
-        __generate_param_instantiation!(number $msg => $param: f32 $([$unit| $($system)?])? $(= $default_value)?)
+        __param!(@instantiate number $msg => $param: f32 $([$unit| $($system)?])? $(= $default_value)?)
     };
     ($msg:path => $param:ident: f64 $([$unit:path| $($system:expr)?])? $(= $default_value:expr)?) => {
-        __generate_param_instantiation!(number $msg => $param: f64 $([$unit| $($system)?])? $(= $default_value)?)
+        __param!(@instantiate number $msg => $param: f64 $([$unit| $($system)?])? $(= $default_value)?)
     };
     ($msg:path => $param:ident: u8 $([$unit:path| $($system:expr)?])? $(= $default_value:expr)?) => {
-        __generate_param_instantiation!(number $msg => $param: u8 $([$unit| $($system)?])? $(= $default_value)?)
+        __param!(@instantiate number $msg => $param: u8 $([$unit| $($system)?])? $(= $default_value)?)
     };
     ($msg:path => $param:ident: u16 $([$unit:path| $($system:expr)?])? $(= $default_value:expr)?) => {
-        __generate_param_instantiation!(number $msg => $param: u16 $([$unit| $($system)?])? $(= $default_value)?)
+        __param!(@instantiate number $msg => $param: u16 $([$unit| $($system)?])? $(= $default_value)?)
     };
     ($msg:path => $param:ident: u32 $([$unit:path| $($system:expr)?])? $(= $default_value:expr)?) => {
-        __generate_param_instantiation!(number $msg => $param: u32 $([$unit| $($system)?])? $(= $default_value)?)
+        __param!(@instantiate number $msg => $param: u32 $([$unit| $($system)?])? $(= $default_value)?)
     };
     ($msg:path => $param:ident: u64 $([$unit:path| $($system:expr)?])? $(= $default_value:expr)?) => {
-        __generate_param_instantiation!(number $msg => $param: u64 $([$unit| $($system)?])? $(= $default_value)?)
+        __param!(@instantiate number $msg => $param: u64 $([$unit| $($system)?])? $(= $default_value)?)
     };
     ($msg:path => $param:ident: i8 $([$unit:path| $($system:expr)?])? $(= $default_value:expr)?) => {
-        __generate_param_instantiation!(number $msg => $param: i8 $([$unit| $($system)?])? $(= $default_value)?)
+        __param!(@instantiate number $msg => $param: i8 $([$unit| $($system)?])? $(= $default_value)?)
     };
     ($msg:path => $param:ident: i16 $([$unit:path| $($system:expr)?])? $(= $default_value:expr)?) => {
-        __generate_param_instantiation!(number $msg => $param: i16 $([$unit| $($system)?])? $(= $default_value)?)
+        __param!(@instantiate number $msg => $param: i16 $([$unit| $($system)?])? $(= $default_value)?)
     };
     ($msg:path => $param:ident: i32 $([$unit:path| $($system:expr)?])? $(= $default_value:expr)?) => {
-        __generate_param_instantiation!(number $msg => $param: i32 $([$unit| $($system)?])? $(= $default_value)?)
+        __param!(@instantiate number $msg => $param: i32 $([$unit| $($system)?])? $(= $default_value)?)
     };
     ($msg:path => $param:ident: i64 $([$unit:path| $($system:expr)?])? $(= $default_value:expr)?) => {
-        __generate_param_instantiation!(number $msg => $param: i64 $([$unit| $($system)?])? $(= $default_value)?)
+        __param!(@instantiate number $msg => $param: i64 $([$unit| $($system)?])? $(= $default_value)?)
     };
     ($msg:path => $param:ident: $type:tt $([$unit:path| $($system:expr)?])? $(= $default_value:expr)?) => {
-        __generate_param_instantiation!($msg => $param: $type $([$unit:path| $($system:expr)?])? $(= $default_value)?)
-    };
-}
-
-macro_rules! __handle_signal_process {
-    ($self:ident, $sig:ident, $param:ident) => {
-        $self.$param.set_value($sig.$param());
-    };
-    ($self:ident, $sig:ident, $param:ident, $process_override:ident) => {
-        $self.$process_override(&$sig.$param(), $sig);
+        __param!(@instantiate $msg => $param: $type $([$unit:path| $($system:expr)?])? $(= $default_value)?)
     };
 }
 
@@ -109,11 +103,8 @@ macro_rules! CarData {
         impl CarData {
             pub fn process_message(&self, message: &Messages) {
                 match message {
-                    $(
-                        Messages::$msg(sig) => {
-                        $(
-                            __handle_signal_process!(self, sig, $param $(, $process_override)?);
-                        )*
+                    $(Messages::$msg(sig) => {
+                        $(CarData!(@signal_process self, sig, $param $(, $process_override)?);)*
                     })*
                     _ => {}
                 }
@@ -148,14 +139,21 @@ macro_rules! CarData {
                 }
             }
         }
-    }
+    };
+
+    {@signal_process $self:ident, $sig:ident, $param:ident} => {
+        $self.$param.set_value($sig.$param());
+    };
+    {@signal_process $self:ident, $sig:ident, $param:ident, $process_override:ident} => {
+        $self.$param.set_value($self.$process_override(&$sig.$param(), $sig));
+    };
 }
 
 // TODO: make our own dbc codegen lib and generate the dbc parser along with the `CarData` `DataParameter` struct for each car
 CarData! {
     Engine => {
         engine_rpm: u16,
-        mt_gear: EngineMtGear,
+        [mt_gear_override] mt_gear: EngineMtGear,
     };
 
     EngineStatus2 => {
@@ -189,7 +187,7 @@ CarData! {
     };
 
     Cluster => {
-        fuel_level: f32,
+        [fuel_level_avg] fuel_level: f32,
         driver_seatbelt_warning_enabled: bool,
         passenger_seatbelt_warning_enabled: bool,
         left_turn_signal_enabled: bool,
@@ -249,7 +247,7 @@ CarData! {
 #[derive(Debug)]
 pub enum ParseResult {
     Mux(MuxParseResult),
-    Ok,
+    Simple,
 }
 
 #[allow(unused)]
@@ -274,41 +272,67 @@ impl CarData {
 
         match Messages::from_can_message(frame.id(), data) {
             Ok(message) => {
+                // TODO: process_message should have a failure path
                 self.process_message(&message);
-                return Ok(ParseResult::Ok);
+                Ok(ParseResult::Simple)
             }
             Err(e) => match e {
-                _ => return Err(ParseError::CanError(e)),
+                _ => Err(ParseError::CanError(e)),
             },
-        };
+        }
     }
 
-    pub fn dimmer_dial_override(
+    fn dimmer_dial_override(
         &self,
         value: &DimmerAndHoodDimmerDialValue,
-        _message: &crate::can::messages::wrx_2018::DimmerAndHood,
-    ) {
+        _message: &wrx_2018::DimmerAndHood,
+    ) -> DimmerAndHoodDimmerDialValue {
         let raw = u8::from(*value);
 
         if raw <= u8::from(DimmerAndHoodDimmerDialValue::X0) {
-            self.dimmer_dial_value
-                .set_value(DimmerAndHoodDimmerDialValue::X0);
+            DimmerAndHoodDimmerDialValue::X0
         } else if raw <= u8::from(DimmerAndHoodDimmerDialValue::X1) {
-            self.dimmer_dial_value
-                .set_value(DimmerAndHoodDimmerDialValue::X1);
+            DimmerAndHoodDimmerDialValue::X1
         } else if raw <= u8::from(DimmerAndHoodDimmerDialValue::X2) {
-            self.dimmer_dial_value
-                .set_value(DimmerAndHoodDimmerDialValue::X2);
+            DimmerAndHoodDimmerDialValue::X2
         } else if raw <= u8::from(DimmerAndHoodDimmerDialValue::X3) {
-            self.dimmer_dial_value
-                .set_value(DimmerAndHoodDimmerDialValue::X3);
+            DimmerAndHoodDimmerDialValue::X3
         } else if raw <= u8::from(DimmerAndHoodDimmerDialValue::X4) {
-            self.dimmer_dial_value
-                .set_value(DimmerAndHoodDimmerDialValue::X4);
+            DimmerAndHoodDimmerDialValue::X4
         } else {
             // there is a different parameter for max brightness
-            self.dimmer_dial_value
-                .set_value(DimmerAndHoodDimmerDialValue::X5);
+            DimmerAndHoodDimmerDialValue::X5
+        }
+    }
+
+    /// Average the value of the fuel level to stop it from jittering
+    fn fuel_level_avg(&self, value: &f32, _message: &wrx_2018::Cluster) -> f32 {
+        const FUEL_AVG_SAMPLES: usize = 500;
+
+        thread_local! {
+            static FUEL_SAMPLES: RefCell<VecDeque<f32>> = const { RefCell::new(VecDeque::new()) };
+        }
+
+        FUEL_SAMPLES.with_borrow_mut(|samples| {
+            samples.push_back(*value);
+            while samples.len() > FUEL_AVG_SAMPLES {
+                samples.pop_front();
+            }
+
+            samples.iter().sum::<f32>() / samples.len() as f32
+        })
+    }
+
+    /// Reject unlikely jumps if the clutch is in
+    fn mt_gear_override(&self, value: &EngineMtGear, _message: &wrx_2018::Engine) -> EngineMtGear {
+        let raw = u8::from(*value);
+        let current = u8::from(self.mt_gear.value());
+        let clutch_sw = self.mt_clutch_sw.value();
+
+        if clutch_sw && current.abs_diff(raw) > 2 {
+            EngineMtGear::Floating
+        } else {
+            *value
         }
     }
 }
