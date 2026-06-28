@@ -5,10 +5,8 @@ use tokio::time::{self, Duration};
 
 pub fn debug_entry() {
     #[cfg(debug_assertions)]
-    {
-        if GLOBAL_STATE.bin_args.debug.debug_cli.value() {
-            tokio::spawn(cli_mode());
-        }
+    if GLOBAL_STATE.bin_args.debug.debug_cli.value() {
+        tokio::spawn(cli_mode());
     }
 }
 

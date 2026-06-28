@@ -22,81 +22,76 @@ fn resolve_path(path: &str) -> Option<(String, Box<dyn std::any::Any>)> {
     resolve_node(path, SETTINGS.get_page_layout()).and_then(|path| SETTINGS.get_by_path(path))
 }
 
-pub fn bridge(handle_weak: Weak<App>) {
-    {
-        let handle_weak = handle_weak.clone();
-        match slint::spawn_local(async_compat::Compat::new(async move {
-            macro_rules! bind {
-                {$slint_global:ident.$param:tt <=> $root:ident.$($tail:tt)+} => {{paste!{
-                    let handle_weak = handle_weak.clone();
-                    let root = $root.clone();
+macro_rules! bind_settings {
+    ($({$slint_global:ident.$param:tt <=$direction:tt $root:ident.$($tail:ident).+}),+ $(,)? ) => {paste! {
+        #[allow(nonstandard_style)]
+        pub fn bind_settings(handle_weak: Weak<App>) {
+            if let Some(handle) = handle_weak.clone().upgrade() {
+                $(bind_settings!(@from (handle) $slint_global.$param $direction $root.$($tail).+);)+
 
-                    if let Some(handle) = handle_weak.upgrade() {
-                        let g = handle.global::<$slint_global>();
+                let _ = slint::spawn_local(async_compat::Compat::new(async move {
+                    $(
+                        let [<g_ $slint_global _ $param>] = handle.global::<$slint_global>();
+                        let mut [<watch_ $root _ $($tail)_+>] = $root.$($tail).+.watch();
+                    )+
 
-                        g.[<on_update_ $param>](move |value| {
-                            root.$($tail)+.set_value(value.into());
-                        });
+                    loop {
+                        $(
+                            let [<value_ $root _ $($tail)_+>] = *[<watch_ $root _ $($tail)_+>].borrow_and_update();
+                            [<g_ $slint_global _ $param>].[<set_ $param>]([<value_ $root _ $($tail)_+>].into());
+                        )+
+
+                        select!{$(
+                            Ok(_) = [<watch_ $root _ $($tail)_+>].changed() => {}
+                        )+}
                     }
 
-                    bind!($slint_global.$param <=| $root.$($tail)+);
-                }}};
-
-                {$slint_global:ident.$param:tt <=| $root:ident.$($tail:tt)+} => {{paste!{
-                    let root = $root.clone();
-                    if let Some(handle) = handle_weak.upgrade() {
-                        let _= slint::spawn_local(async_compat::Compat::new(async move {
-                            let g = handle.global::<$slint_global>();
-                            let mut watch = root.$($tail)+.watch();
-
-                            loop {
-                                g.[<set_ $param>](root.$($tail)+.value().into());
-
-                                select!{
-                                    Ok(_) = watch.changed() => {},
-                                    else => {break;}
-                                }
-                            }
-                        }));
-                    }
-                }}};
+                }));
             }
-
-            // TODO: auto-generate bindings
-            bind!(ApplicationState.user_unit <=> SETTINGS.user.general.unit_system);
-            bind!(ApplicationState.running_simulation <=> SETTINGS.developer.simulation.running_simulation);
-            bind!(ApplicationState.running_can <=> SETTINGS.developer.can.running_can);
-            bind!(GeneralSettings.disable_hill_assist <=> SETTINGS.user.general.disable_hill_assist_warning);
-            bind!(WidgetSettings.can_display_widget_enabled <=> SETTINGS.user.widgets.can_display_widget_enabled);
-            bind!(GlobalThemeData.current_theme <=> SETTINGS.user.theme.selected_theme);
-            bind!(AccessibilitySettings.animations_enabled <=> SETTINGS.user.accessibility.animations_enabled);
-            bind!(AccessibilitySettings.accessible_switches <=> SETTINGS.user.accessibility.accessible_switches);
-            bind!(AccessibilitySettings.selection_box_thickness <=> SETTINGS.user.accessibility.selection_box_thickness);
-            bind!(DebugSettings.debug_mode <=> SETTINGS.developer.debug.debug_mode);
-            bind!(DebugSettings.debug_highlights <=> SETTINGS.developer.debug.debug_highlights);
-            bind!(DebugSettings.debug_overlay_enabled <=> SETTINGS.developer.debug.debug_overlay_enabled);
-            bind!(DebugSettings.extra_debug_info <=> SETTINGS.developer.debug.extra_debug_info);
-            bind!(WidgetContainerState.current_page <=> SETTINGS.user.save_state.last_widget_index);
-
-            bind!(SystemInfo.total_memory <=| SETTINGS.developer.system_info.total_memory_mb);
-            bind!(SystemInfo.used_memory <=| SETTINGS.developer.system_info.used_memory_mb);
-            bind!(SystemInfo.process_memory <=| SETTINGS.developer.system_info.process_memory_mb);
-            bind!(SystemInfo.process_memory_max <=| SETTINGS.developer.system_info.process_memory_max_mb);
-            bind!(SystemInfo.num_cpus <=| SETTINGS.developer.system_info.num_cpus);
-            bind!(SystemInfo.cpu_usage <=| SETTINGS.developer.system_info.cpu_usage);
-            bind!(SystemInfo.fps <=| SETTINGS.developer.system_info.fps);
-
-            bind!(Performance.can_frames_sent_per_sec <=| SETTINGS.developer.performance.can_frames_sent_per_sec);
-            bind!(Performance.can_frames_parsed_per_sec <=| SETTINGS.developer.performance.can_frames_parsed_per_sec);
-            bind!(Performance.can_frame_parse_to_ui_latency_us <=| SETTINGS.developer.performance.can_frame_parse_to_ui_latency_us);
-            bind!(Performance.can_frame_parse_to_ui_latency_max_us <=| SETTINGS.developer.performance.can_frame_parse_to_ui_latency_max_us);
-            bind!(Performance.can_frames_lost_total <=| SETTINGS.developer.performance.can_frames_lost_total);
-        })) {
-            Err(e) => eprintln!("Failure in settings loader: {e}"),
-            _ => {}
         }
-    }
+    }};
 
+    {@from ($handle:ident) $slint_global:ident.$param:tt > $root:ident.$($tail:ident).+} => {paste!{
+        $handle.global::<$slint_global>().[<on_update_ $param>](move |value| {
+            $root.$($tail).+.set_value(value.into());
+        });
+    }};
+    {@from ($handle:ident) $slint_global:ident.$param:tt | $root:ident.$($tail:ident).+} => {/* empty */};
+}
+
+bind_settings! {
+    {ApplicationState.user_unit <=> SETTINGS.user.general.unit_system},
+    {ApplicationState.running_simulation <=> SETTINGS.developer.simulation.running_simulation},
+    {ApplicationState.running_can <=> SETTINGS.developer.can.running_can},
+    {GeneralSettings.disable_hill_assist <=> SETTINGS.user.general.disable_hill_assist_warning},
+    {WidgetSettings.can_display_widget_enabled <=> SETTINGS.user.widgets.can_display_widget_enabled},
+    {GlobalThemeData.current_theme <=> SETTINGS.user.theme.selected_theme},
+    {AccessibilitySettings.animations_enabled <=> SETTINGS.user.accessibility.animations_enabled},
+    {AccessibilitySettings.accessible_switches <=> SETTINGS.user.accessibility.accessible_switches},
+    {AccessibilitySettings.selection_box_thickness <=> SETTINGS.user.accessibility.selection_box_thickness},
+    {DebugSettings.debug_mode <=> SETTINGS.developer.debug.debug_mode},
+    {DebugSettings.debug_highlights <=> SETTINGS.developer.debug.debug_highlights},
+    {DebugSettings.debug_overlay_enabled <=> SETTINGS.developer.debug.debug_overlay_enabled},
+    {DebugSettings.extra_debug_info <=> SETTINGS.developer.debug.extra_debug_info},
+    {WidgetContainerState.current_page <=> SETTINGS.user.save_state.last_widget_index},
+
+    {SystemInfo.total_memory <=| SETTINGS.developer.system_info.total_memory_mb},
+    {SystemInfo.used_memory <=| SETTINGS.developer.system_info.used_memory_mb},
+    {SystemInfo.process_memory <=| SETTINGS.developer.system_info.process_memory_mb},
+    {SystemInfo.process_memory_max <=| SETTINGS.developer.system_info.process_memory_max_mb},
+    {SystemInfo.num_cpus <=| SETTINGS.developer.system_info.num_cpus},
+    {SystemInfo.cpu_usage <=| SETTINGS.developer.system_info.cpu_usage},
+    {SystemInfo.fps <=| SETTINGS.developer.system_info.fps},
+
+    {Performance.can_frames_sent_per_sec <=| SETTINGS.developer.performance.can_frames_sent_per_sec},
+    {Performance.can_frames_parsed_per_sec <=| SETTINGS.developer.performance.can_frames_parsed_per_sec},
+    {Performance.can_frame_parse_to_ui_latency_us <=| SETTINGS.developer.performance.can_frame_parse_to_ui_latency_us},
+    {Performance.can_frame_parse_to_ui_latency_max_us <=| SETTINGS.developer.performance.can_frame_parse_to_ui_latency_max_us},
+    {Performance.can_frames_lost_total <=| SETTINGS.developer.performance.can_frames_lost_total},
+}
+
+pub fn bridge(handle_weak: Weak<App>) {
+    bind_settings(handle_weak.clone());
     if let Some(handle) = handle_weak.upgrade() {
         let ui_layout = handle.global::<SettingsLayout>();
 
