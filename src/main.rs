@@ -13,11 +13,11 @@ use crate::can::emulators::wrx_2018_emulator;
 use crate::can::messages::wrx_2018::CanError;
 use crate::can::mux_context::{self, MuxContext, MuxParseResult};
 use crate::can::parsers::iso_tp::*;
-use crate::data::car_data::{CAN_DATA, ParseError};
+use crate::data::car::wrx_2018::{CAN_DATA, ParseError};
 use crate::debug::debug_entry;
 use crate::hardware::hardware_backend::{self, HardwareBackend};
 use crate::slint_ui::backend::{
-    backend_lib, can_display, car_data_bridge, hardware_bridge, lang, rs_type_resolver,
+    backend_lib, can_display, car_data::wrx_2018_can, hardware_bridge, lang, rs_type_resolver,
     settings_bridge, state_bridge,
 };
 
@@ -240,7 +240,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         rs_type_resolver::bridge(ui.as_weak());
         settings_bridge::bridge(ui.as_weak());
-        car_data_bridge::bridge(ui.as_weak());
+        wrx_2018_can::bridge(ui.as_weak());
         hardware_bridge::bridge(ui.as_weak(), hardware_backend.clone());
         lang::bridge(ui.as_weak());
         backend_lib::bridge(ui.as_weak());
