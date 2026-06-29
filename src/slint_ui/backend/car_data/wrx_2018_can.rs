@@ -6,10 +6,6 @@ use crate::slint_generatedApp::*;
 use pastey::paste;
 use slint::{ComponentHandle, Weak};
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, Ordering};
-use tokio::time::{self, Duration, Instant};
-
 macro_rules! param_convertion_handle {
     (@number $data_root:ident, $ui_car_data:ident, $unit_system:ident, $param:ident: $type:ty = $value:expr) => {paste!(
         let units = $data_root.$param().units();
@@ -45,76 +41,46 @@ macro_rules! param_convertion_handle {
 macro_rules! bridge {
     ($data_root:ident; $($param:ident: $type:tt),+ $(,)?) => {paste! {
         pub fn bridge(ui: Weak<App>) {
-            let Some(ui) = ui.upgrade() else { return };
+            tokio::spawn(async move {
+                $(
+                    let mut [<watch_ $param>] = $data_root.$param().watch();
+                    let mut [<value_ $param>] = $data_root.$param().value();
+                )+
 
-            let frames: Arc<AtomicU32> = Default::default();
+                let unit_system_parameter = &(SETTINGS.user.general.unit_system);
+                let mut unit_system_changed = unit_system_parameter.watch();
+                let mut unit_system: UnitSystem = unit_system_parameter.value();
 
-            {
-                let weak = ui.as_weak();
-                let frames = frames.clone();
-
-                $( let mut [<watch_ $param>] = $data_root.$param().watch(); )+
-                let mut unit_system_watch = SETTINGS.user.general.unit_system.watch();
-                let mut first_frame = true;
-
-                ui.window()
-                    .set_rendering_notifier(move |state, _| {
-                        if !matches!(state, slint::RenderingState::BeforeRendering) {
-                            return;
-                        }
-
-                        let Some(ui) = weak.upgrade() else { return };
-
-                        frames.fetch_add(1, Ordering::Relaxed);
-
+                loop {
+                    let _ = ui.upgrade_in_event_loop(move |ui| {
                         let ui_car_data = ui.global::<SCarData>();
-                        let unit_system = SETTINGS.user.general.unit_system.value();
-                        let refresh_all = first_frame || unit_system_watch.has_changed().unwrap_or(false);
-                        unit_system_watch.mark_unchanged();
-                        first_frame = false;
-
-                        let mut updated = false;
-
-                        $(
-                            if refresh_all || [<watch_ $param>].has_changed().unwrap_or(false) {
-                                let value = *[<watch_ $param>].borrow_and_update();
-                                param_convertion_handle!($data_root, ui_car_data, unit_system, $param: $type = value);
-                                updated = true;
-                            }
-                        )+
-
-                        if updated {
-                            #[cfg(debug_assertions)]
-                            crate::util::performance::record_ui_latency(
-                                crate::util::performance::last_parse_instant_ns(),
-                            );
-
-                            ui.window().request_redraw();
-                        }
-                    })
-                    .unwrap();
-            }
-
-            {
-                let frames = frames.clone();
-                tokio::spawn(async move {
-                    let mut last = Instant::now();
-                    let mut interval = time::interval(Duration::from_millis(100));
+                        $( param_convertion_handle!($data_root, ui_car_data, unit_system, $param: $type = [<value_ $param>]); )+
+                    });
 
                     loop {
-                        interval.tick().await;
-                        let secs = last.elapsed().as_secs_f32();
+                        tokio::select! {
+                            Ok(_) = unit_system_changed.changed() => {
+                                unit_system = *unit_system_changed.borrow_and_update();
+                                break;
+                            },
+                            $(
+                                Ok(_) = [<watch_ $param>].changed() => {
+                                    [<value_ $param>] = *[<watch_ $param>].borrow_and_update();
+                                    #[cfg(debug_assertions)]
+                                    let parsed_ns = crate::util::performance::last_parse_instant_ns();
 
-                        SETTINGS
-                            .developer
-                            .system_info
-                            .fps
-                            .set_value(((frames.swap(0, Ordering::Relaxed) as f32) / secs) as i32);
-
-                        last = Instant::now();
+                                    let _ = ui.upgrade_in_event_loop(move |ui| {
+                                        let ui_car_data = ui.global::<SCarData>();
+                                        param_convertion_handle!($data_root, ui_car_data, unit_system, $param: $type = [<value_ $param>]);
+                                        #[cfg(debug_assertions)]
+                                        crate::util::performance::record_ui_latency(parsed_ns);
+                                    });
+                                },
+                            )+
+                        };
                     }
-                });
-            }
+                }
+            });
         }
     }};
 }
