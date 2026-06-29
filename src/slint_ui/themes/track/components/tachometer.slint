@@ -24,31 +24,26 @@ component TachVerticalLine {
 }
 
 component DecorationBar inherits Rectangle {
+    in property <length> ends-length: root.width * 2%;
+
     width: 100%;
     height: 3px;
     background: transparent;
 
-    center-bar := Rectangle {
-        height: 100%;
-        width: 90%;
-        x: root.width / 2 - self.width / 2;
-        background: white;
-    }
+    HorizontalLayout {
+        left-bar := Rectangle {
+            width: ends-length;
+            background: @linear-gradient(90deg, #00000000 0%, white 100%);
+        }
 
-    left-bar := Rectangle {
-        height: 100%;
-        width: 5%;
-        x: 0;
+        center-bar := Rectangle {
+            background: white;
+        }
 
-        background: @linear-gradient(90deg, #00000000 0%, white 100%);
-    }
-
-    right-bar := Rectangle {
-        height: 100%;
-        width: 5%;
-        x: root.width - self.width;
-
-        background: @linear-gradient(-90deg, #00000000 0%, white 100%);
+        right-bar := Rectangle {
+            width: ends-length;
+            background: @linear-gradient(-90deg, #00000000 0%, white 100%);
+        }
     }
 }
 
@@ -85,12 +80,13 @@ export component Tachometer inherits Rectangle {
     private property <length> thickest-redline: get-redline-tick-width-log(redline-ticks - 1);
 
     interior := Rectangle {
-
         background: transparent;
-        width: 87.5%;
+        width: 95%;
         height: root.height - top-bar.height - bottom-bar.height;
 
         redline-layout := HorizontalLayout {
+            padding-top: 6px;
+            padding-bottom: self.padding-top;
             alignment: LayoutAlignment.end;
             spacing: redline-tick-gap;
 
@@ -106,7 +102,6 @@ export component Tachometer inherits Rectangle {
         }
 
         major-tick-lines-layout := HorizontalLayout {
-
             alignment: LayoutAlignment.start;
             spacing: tick-step;
 
@@ -121,7 +116,7 @@ export component Tachometer inherits Rectangle {
                     text: major-tick-line;
                     horizontal-alignment: center;
                     vertical-alignment: center;
-                    font-size: 25px;
+                    font-size: 35px;
                 }
             }
         }

@@ -3,23 +3,23 @@ import { SCarData } from "@gen/data/car_data.slint";
 // TODO: add tire pressures when decoded
 // TODO: add 3d model or something better at least
 export component CarDisplayWidget inherits Rectangle {
-    property <length> part-padding: 10px;
+    property <length> part-padding: body.width * 8%;
 
     VerticalLayout {
         HorizontalLayout {
             Rectangle {
                 left-front-tire := Rectangle {
                     width: left-front-door.width;
-                    height: 55px;
+                    height: body.height * 27.5%;
                     y: hood.y - self.height / 2 + hood.height / 2;
                     x: body.x - self.width - part-padding;
                     background: body.background;
-                    border-radius: 4px;
+                    border-radius: body.width * 3.2%;
                 }
 
                 right-front-tire := Rectangle {
                     width: left-front-door.width;
-                    height: 55px;
+                    height: body.height * 27.5%;
                     y: hood.y - self.height / 2 + hood.height / 2;
                     x: body.x + body.width + part-padding;
                     background: body.background;
@@ -28,7 +28,7 @@ export component CarDisplayWidget inherits Rectangle {
 
                 left-rear-tire := Rectangle {
                     width: left-front-door.width;
-                    height: 55px;
+                    height: body.height * 27.5%;
                     y: trunk.y - self.height / 2 + trunk.height / 2;
                     x: body.x - self.width - part-padding;
                     background: body.background;
@@ -37,7 +37,7 @@ export component CarDisplayWidget inherits Rectangle {
 
                 right-rear-tire := Rectangle {
                     width: left-front-door.width;
-                    height: 55px;
+                    height: body.height * 27.5%;
                     y: trunk.y - self.height / 2 + trunk.height / 2;
                     x: body.x + body.width + part-padding;
                     background: body.background;
@@ -46,7 +46,7 @@ export component CarDisplayWidget inherits Rectangle {
 
                 hood := Rectangle {
                     width: body.width;
-                    height: 93px;
+                    height: body.height * 46.5%;
                     y: body.y - self.height - part-padding;
                     x: body.x;
                     background: SCarData.hood_open.value ? red : body.background;
@@ -54,20 +54,20 @@ export component CarDisplayWidget inherits Rectangle {
 
                 trunk := Rectangle {
                     width: hood.width;
-                    height: 60px;
+                    height: body.height * 30%;
                     y: body.y + body.height + part-padding;
                     x: body.x;
                     background: SCarData.trunk_open.value ? red : body.background;
                 }
 
                 body := Rectangle {
-                    width: 125px;
-                    height: 200px;
+                    height: parent.height * 50%;
+                    width: self.height * 62.5%;
                     background: gray.darker(50%).transparentize(25%);
                 }
 
                 left-front-door := Rectangle {
-                    width: 20px;
+                    width: body.width * 16%;
                     height: (body.height - part-padding) / 2;
                     y: body.y;
                     x: body.x - self.width - part-padding;

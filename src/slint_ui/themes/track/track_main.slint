@@ -6,6 +6,7 @@ import {
 } from "@themes/default/components/car_interior_brightness_indicator.slint";
 import { SymbolProperties } from "@themes/default/symbol_properties.slint";
 import { SCarData } from "@gen/data/car_data.slint";
+import { SFDataParameter, SIDataParameter } from "@data/data_parameter.slint";
 import { SUnitSystem } from "@lib/units.slint";
 import { DebugHighlight } from "@lib/core.slint";
 import {
@@ -13,6 +14,9 @@ import {
     GeneralSettings,
 } from "@lib/state.slint";
 import { WidgetContainer } from "@widgets/widget_container.slint";
+import { Tachometer } from "components/tachometer.slint";
+import { GaugeContainer } from "components/generic-gauge.slint";
+import { Odometer } from "../default/components/common.slint";
 
 component PrimarySection inherits Rectangle {
     background: transparent;
@@ -37,54 +41,109 @@ export component TrackTheme inherits Rectangle {
     VerticalLayout {
         top-span := PrimarySection {
             height: SymbolProperties.size;
+
+            InteriorBrightnessIndicator { }
         }
 
-        mid-span := Rectangle {
-            WidgetContainer {
-                x: parent.width * 70%;
-                width: 15%;
-                height: 55%;
+        mid-span := PrimarySection {
+            VerticalLayout {
+                Rectangle {
+                    height: 30%;
+
+                    tachometer := Tachometer {
+                        width: 85%;
+
+                        Text {
+                            font-size: 20px;
+                            y: -self.height;
+                            x: parent.width - self.width;
+                            color: white.transparentize(85%);
+
+                            text: "×1000";
+                        }
+                    }
+                }
+
+                Rectangle {
+                    speedometer-label := Text {
+                        y: gear-indicator.y;
+                        x: parent.width * 20%;
+
+                        text: round(SCarData.vehicle_speed.value);
+                        color: white;
+                        font-size: 90px;
+
+                        vertical-alignment: TextVerticalAlignment.center;
+                        horizontal-alignment: TextHorizontalAlignment.center;
+                    }
+
+                    speedometer-unit-label := Text {
+                        x: speedometer-label.x;
+                        y: speedometer-label.y + speedometer-label.height * 1.10;
+                        text: SCarData.vehicle_speed.unit-str;
+                        color: speedometer-label.color.transparentize(75%);
+                        font-size: speedometer-label.font-size * 70%;
+                        horizontal-alignment: TextHorizontalAlignment.center;
+                    }
+
+                    gear-indicator := Text {
+                        color: white;
+                        text: SCarData.mt_gear.value;
+                        font-size: 150px;
+
+                        vertical-alignment: TextVerticalAlignment.center;
+                        horizontal-alignment: TextHorizontalAlignment.center;
+                    }
+
+                    WidgetContainer {
+                        x: parent.width - parent.width * 30%;
+                        height: parent.height * 90%;
+                        width: 15%;
+                    }
+                }
             }
         }
 
         bottom-span := PrimarySection {
-            height: 8%;
+            i-left-gauge-stack := HorizontalLayout {
+                alignment: start;
+                padding: 20px;
 
-            InteriorBrightnessIndicator {
-                y: odometer-text-section.y - self.height - 50px;
-            }
+                i-left-gauge-stack-vertical := VerticalLayout {
+                    width: 18%;
+                    spacing: 5px;
+                    alignment: end;
 
-            HorizontalLayout {
-                alignment: center;
-                odometer-text-section := Rectangle {
-                    background: transparent;
-
-                    odometer-text := Text {
-                        color: white;
-                        text: floor(SCarData.odometer.value);
-                        font-size: 47.5px;
-                        vertical-alignment: center;
-                        horizontal-alignment: center;
+                    coolant-temp-gauge := GaugeContainer {
+                        data-parameter: SCarData.engine_coolant_temp;
+                        image: @image-url("@images/coolant-temp-low-high-indicator-light.png");
                     }
 
-                    odometer-dec-text := Text {
-                        color: odometer-text.color.transparentize(60%);
-                        text: "." + (floor(SCarData.odometer.value * 10) / 10 - floor(SCarData.odometer.value)) * 10;
-                        font-size: odometer-text.font-size;
-                        horizontal-alignment: left;
-                        vertical-alignment: odometer-text.vertical-alignment;
-                        x: odometer-text.x + odometer-text.width;
-                    }
-
-                    odometer-unit-text := Text {
-                        vertical-alignment: center;
-                        color: odometer-text.color.transparentize(70%);
-                        text: SCarData.odometer.unit_str;
-                        font-size: odometer-text.font-size * 70%;
-                        x: odometer-dec-text.x + odometer-dec-text.width;
+                    oil-temp-gauge := GaugeContainer {
+                        data-parameter: SCarData.engine_oil_temp;
+                        image: @image-url("@svg/oil-pressure-warning-light.svg");
                     }
                 }
             }
+
+            i-right-gauge-stack := HorizontalLayout {
+                padding: i-left-gauge-stack.padding;
+                alignment: end;
+
+                i-right-gauge-stack-vertical := VerticalLayout {
+                    width: i-left-gauge-stack-vertical.width;
+                    spacing: i-left-gauge-stack-vertical.spacing;
+                    alignment: i-left-gauge-stack-vertical.alignment;
+
+                    fuel-level-gauge := GaugeContainer {
+                        data-parameter: SCarData.fuel_level;
+                        image: @image-url("@images/lowfuel-warning-light.png");
+                        alignment: right;
+                    }
+                }
+            }
+
+            Odometer { }
         }
     }
 }

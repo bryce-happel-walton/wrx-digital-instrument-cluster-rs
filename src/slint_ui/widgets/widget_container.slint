@@ -89,7 +89,7 @@ component FocusableWidget inherits Widget {
 
 
 
-export component WidgetContainer {
+export component WidgetContainer inherits Rectangle {
     forward-focus: center-widget-container-indicator;
 
     init => WidgetContainerState.clear-pages();
@@ -179,7 +179,7 @@ export component WidgetContainer {
 
                 car-display-widget := Widget {
                     CarDisplayWidget {
-                        height: 100%;
+                        height: 70%;
                         width: 100%;
                     }
                 }

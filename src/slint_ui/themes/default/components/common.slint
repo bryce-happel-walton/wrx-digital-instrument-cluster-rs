@@ -1,0 +1,33 @@
+import { SCarData } from "@gen/data/car_data.slint";
+
+export component Odometer inherits HorizontalLayout {
+    alignment: center;
+    odometer-text-section := Rectangle {
+        background: transparent;
+
+        odometer-text := Text {
+            color: white;
+            text: floor(SCarData.odometer.value);
+            font-size: 47.5px;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+        }
+
+        odometer-dec-text := Text {
+            color: odometer-text.color.transparentize(60%);
+            text: "." + (floor(SCarData.odometer.value * 10) / 10 - floor(SCarData.odometer.value)) * 10;
+            font-size: odometer-text.font-size;
+            horizontal-alignment: left;
+            vertical-alignment: odometer-text.vertical-alignment;
+            x: odometer-text.x + odometer-text.width;
+        }
+
+        odometer-unit-text := Text {
+            vertical-alignment: center;
+            color: odometer-text.color.transparentize(70%);
+            text: SCarData.odometer.unit_str;
+            font-size: odometer-text.font-size * 70%;
+            x: odometer-dec-text.x + odometer-dec-text.width;
+        }
+    }
+}

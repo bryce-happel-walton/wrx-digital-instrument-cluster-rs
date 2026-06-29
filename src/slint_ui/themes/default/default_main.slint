@@ -2,6 +2,7 @@ import { VerticalBox, ComboBox } from "std-widgets.slint";
 
 import { Arc } from "@lib/core.slint";
 import { InstrumentGauge } from "components/instrument_gauge.slint";
+import { Odometer } from "components/common.slint";
 import {
     InteriorBrightnessIndicator,
 } from "components/car_interior_brightness_indicator.slint";
@@ -48,6 +49,8 @@ export component DefaultTheme inherits Rectangle {
     VerticalLayout {
         top-span := PrimarySection {
             height: SymbolProperties.size;
+
+            InteriorBrightnessIndicator { }
         }
 
         mid-span := HorizontalLayout {
@@ -200,7 +203,7 @@ export component DefaultTheme inherits Rectangle {
                 mt-gear-label := Text {
                     text: SCarData.reverse_sw.value ? "R" : SCarData.mt_gear.value;
                     color: SCarData.mt_clutch_sw.value ? white.transparentize(70%) : white;
-                    font-size: 85px;
+                    font-size: 90px;
 
                     x: tachometer.x + tachometer.width / 2 - self.width / 2;
                     y: tachometer.y + tachometer.height / 2 - self.height / 2;
@@ -398,7 +401,7 @@ export component DefaultTheme inherits Rectangle {
                     speedometer-label := Text {
                         text: round(SCarData.vehicle_speed.value);
                         color: white;
-                        font-size: 85px;
+                        font-size: 90px;
                         vertical-alignment: TextVerticalAlignment.center;
                         horizontal-alignment: TextHorizontalAlignment.center;
                     }
@@ -640,41 +643,7 @@ export component DefaultTheme inherits Rectangle {
         bottom-span := PrimarySection {
             height: 8%;
 
-            InteriorBrightnessIndicator {
-                y: odometer-text-section.y - self.height - 50px;
-            }
-
-            HorizontalLayout {
-                alignment: center;
-                odometer-text-section := Rectangle {
-                    background: transparent;
-
-                    odometer-text := Text {
-                        color: white;
-                        text: floor(SCarData.odometer.value);
-                        font-size: 47.5px;
-                        vertical-alignment: center;
-                        horizontal-alignment: center;
-                    }
-
-                    odometer-dec-text := Text {
-                        color: odometer-text.color.transparentize(60%);
-                        text: "." + (floor(SCarData.odometer.value * 10) / 10 - floor(SCarData.odometer.value)) * 10;
-                        font-size: odometer-text.font-size;
-                        horizontal-alignment: left;
-                        vertical-alignment: odometer-text.vertical-alignment;
-                        x: odometer-text.x + odometer-text.width;
-                    }
-
-                    odometer-unit-text := Text {
-                        vertical-alignment: center;
-                        color: odometer-text.color.transparentize(70%);
-                        text: SCarData.odometer.unit_str;
-                        font-size: odometer-text.font-size * 70%;
-                        x: odometer-dec-text.x + odometer-dec-text.width;
-                    }
-                }
-            }
+            Odometer { }
         }
     }
 }
