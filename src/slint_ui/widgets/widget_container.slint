@@ -92,11 +92,11 @@ component FocusableWidget inherits Widget {
 export component WidgetContainer {
     forward-focus: center-widget-container-indicator;
 
-    // TODO: initialize to the last page we were on
     init => WidgetContainerState.clear-pages();
 
     VerticalLayout {
         center-widget-container-indicator := FocusDomain {
+            property <int> current-page: WidgetContainerState.current-page;
             property <length> indicator-width: self.height;
 
             height: 10%;
@@ -110,6 +110,8 @@ export component WidgetContainer {
                 alignment: center;
                 spacing: FocusState.focus-highlight-size;
                 padding: FocusState.focus-highlight-size;
+
+                private property <bool> initialized-focus: false;
 
                 for i in WidgetContainerState.num-pages: Rectangle {
                     private property <bool> has-view: WidgetContainerState.current-page == i;
@@ -134,8 +136,10 @@ export component WidgetContainer {
                     }
 
                     init => {
-                        if i == 0 && domain-active {
+                        if (i == 0) && ((WidgetContainerState.current-page > WidgetContainerState.num-pages) || (WidgetContainerState.current-page < 0)) {
                             i-focus.focus();
+                        } else {
+                            attempt-focus();
                         }
                     }
 
