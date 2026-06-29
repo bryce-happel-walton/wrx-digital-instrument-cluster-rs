@@ -13,7 +13,7 @@ use crate::can::emulators::wrx_2018_emulator;
 use crate::can::messages::wrx_2018::CanError;
 use crate::can::mux_context::{self, MuxContext, MuxParseResult};
 use crate::can::parsers::iso_tp::*;
-use crate::data::car_data::{CAR_DATA, ParseError};
+use crate::data::car_data::{CAN_DATA, ParseError};
 use crate::debug::debug_entry;
 use crate::hardware::hardware_backend::{self, HardwareBackend};
 use crate::slint_ui::backend::{
@@ -102,7 +102,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     if let Some(frame) = can_backend.read_frame() {
                         can_display::update(weak_ui.clone(), &frame, false);
 
-                        match CAR_DATA.parse_frame(&frame) {
+                        match CAN_DATA.parse_frame(&frame) {
                             Ok(result) => match result {
                                 //? CAR_DARA.parse_frame does not do any demuxing currently
                                 // ParseResult::Mux(result) => match result {

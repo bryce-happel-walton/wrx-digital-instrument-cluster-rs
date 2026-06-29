@@ -1,5 +1,5 @@
 use crate::hardware::hardware_backend::{self, HARDWARE_NAVIGATION_INPUT};
-use crate::{CAR_DATA, GLOBAL_STATE, SETTINGS, SHUTDOWN_SIGNAL};
+use crate::{CAN_DATA, GLOBAL_STATE, SETTINGS, SHUTDOWN_SIGNAL};
 
 use tokio::time::{self, Duration};
 
@@ -131,7 +131,7 @@ async fn cli_mode() {
                     let param = *cmd_splt.get(1).unwrap_or(&"");
                     let value = *cmd_splt.get(2).unwrap_or(&"");
 
-                    CAR_DATA.set_param_by_name(param, value);
+                    CAN_DATA.set_param_by_name(param, value);
                 }
                 x => eprintln!("Unknown command `{x}`"),
             }

@@ -505,7 +505,6 @@ macro_rules! parameter_struct {
 
     (@path-get-internal $self:ident $path:expr;| param $([$permissions:tt])? $param:ident: $ty:path) => {{
         let value = $self.$param.value();
-        // TODO: switch to serde instead of display/parse
         Some((serde_json::to_string(&value).unwrap(), Box::new(value)))
     }};
     (@path-get-internal $self:ident $path:expr;| page $([$condition:expr])? $sub:ident) => {

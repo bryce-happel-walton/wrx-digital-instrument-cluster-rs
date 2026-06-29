@@ -11,7 +11,7 @@ use std::collections::VecDeque;
 use std::str::FromStr;
 use std::sync::LazyLock;
 
-pub(crate) static CAR_DATA: LazyLock<CarData> = crate::LazyLockDefault!();
+pub(crate) static CAN_DATA: LazyLock<CanData> = crate::LazyLockDefault!();
 
 macro_rules! __generate_param_unit_system {
     ($unit:path| $system:expr) => {
@@ -74,7 +74,7 @@ macro_rules! __param {
 // TODO: derive from parameter_struct!
 /// Example:
 ///```rust
-/// CarData! {
+/// CanData! {
 ///     {
 ///         // normal struct stuff here
 ///     };
@@ -85,7 +85,7 @@ macro_rules! __param {
 ///     };+
 /// }
 ///
-/// impl CarData {
+/// impl CanData {
 ///     (fn SpeedOverride(&mut self, input: u16 /* &dyn Any */, param: MessageEnum) {
 ///         ...
 ///     })?
@@ -94,17 +94,17 @@ macro_rules! __param {
 ///
 /// Note: ```bool``` data types default to `true` unless otherwise stated
 ///
-macro_rules! CarData {
+macro_rules! CanData {
     { $($msg:ident => { $($(<$unit:path$(:$unit_system:path)?>)? $([$process_override:ident])? $param:ident: $type:tt $(= $init:expr)?),+ $(,)? } );+; } => {
-        pub struct CarData {
+        pub struct CanData {
             $($($param: DataParameter<$type>,)*)*
         }
 
-        impl CarData {
+        impl CanData {
             pub fn process_message(&self, message: &Messages) {
                 match message {
                     $(Messages::$msg(sig) => {
-                        $(CarData!(@signal_process self, sig, $param $(, $process_override)?);)*
+                        $(CanData!(@signal_process self, sig, $param $(, $process_override)?);)*
                     })*
                     _ => {}
                 }
@@ -132,7 +132,7 @@ macro_rules! CarData {
 
         }
 
-        impl Default for CarData {
+        impl Default for CanData {
             fn default() -> Self {
                 Self {
                     $($($param: __param!(wrx_2018::$msg => $param: $type $([$unit| $($unit_system)?])? $(= $init)?),)*)*
@@ -150,7 +150,7 @@ macro_rules! CarData {
 }
 
 // TODO: make our own dbc codegen lib and generate the dbc parser along with the `CarData` `DataParameter` struct for each car
-CarData! {
+CanData! {
     Engine => {
         engine_rpm: u16,
         [mt_gear_override] mt_gear: EngineMtGear,
@@ -266,7 +266,7 @@ impl std::fmt::Display for ParseError {
     }
 }
 
-impl CarData {
+impl CanData {
     pub fn parse_frame(&self, frame: &impl Frame) -> Result<ParseResult, ParseError> {
         let data = &frame.data()[..frame.dlc()];
 

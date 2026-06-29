@@ -1,4 +1,4 @@
-use crate::CAR_DATA;
+use crate::CAN_DATA;
 use crate::application::settings::SETTINGS;
 use crate::data::units::UnitSystem;
 use crate::slint_generatedApp::*;
@@ -11,12 +11,12 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use tokio::time::{self, Duration, Instant};
 
 macro_rules! param_convertion_handle {
-    (@number $ui_car_data:ident, $unit_system:ident, $param:ident: $type:ty = $value:expr) => {paste!(
-        let units = CAR_DATA.$param().units();
+    (@number $data_root:ident, $ui_car_data:ident, $unit_system:ident, $param:ident: $type:ty = $value:expr) => {paste!(
+        let units = $data_root.$param().units();
 
         let converted_value = units.convert_value_to($value as f64, $unit_system);
-        let converted_min = units.convert_value_to(CAR_DATA.$param().min() as f64, $unit_system);
-        let converted_max = units.convert_value_to(CAR_DATA.$param().max() as f64, $unit_system);
+        let converted_min = units.convert_value_to($data_root.$param().min() as f64, $unit_system);
+        let converted_max = units.convert_value_to($data_root.$param().max() as f64, $unit_system);
 
         if !converted_value.is_nan() && !converted_min.is_nan() && !converted_max.is_nan() {
             let mut sparam = $ui_car_data.[<get_ $param>]();
@@ -28,13 +28,13 @@ macro_rules! param_convertion_handle {
             $ui_car_data.[<set_ $param>](sparam);
         }
     )};
-    ($ui_car_data:ident, $unit_system:ident, $param:ident: SIDataParameter = $value:expr) => {
-        param_convertion_handle!{@number $ui_car_data, $unit_system, $param: i32 = $value}
+    ($data_root:ident, $ui_car_data:ident, $unit_system:ident, $param:ident: SIDataParameter = $value:expr) => {
+        param_convertion_handle!{@number $data_root, $ui_car_data, $unit_system, $param: i32 = $value}
     };
-    ($ui_car_data:ident, $unit_system:ident, $param:ident: SFDataParameter = $value:expr) => {
-        param_convertion_handle!{@number $ui_car_data, $unit_system, $param: f32 = $value}
+    ($data_root:ident, $ui_car_data:ident, $unit_system:ident, $param:ident: SFDataParameter = $value:expr) => {
+        param_convertion_handle!{@number $data_root, $ui_car_data, $unit_system, $param: f32 = $value}
     };
-    ($ui_car_data:ident, $unit_system:ident, $param:ident: $type:tt = $value:expr) => {paste!(
+    ($data_root:ident, $ui_car_data:ident, $unit_system:ident, $param:ident: $type:tt = $value:expr) => {paste!(
         let mut sparam = $ui_car_data.[<get_ $param>]();
         sparam.value = $value.into();
 
@@ -43,7 +43,7 @@ macro_rules! param_convertion_handle {
 }
 
 macro_rules! bridge {
-    ($($param:ident: $type:tt),+ $(,)?) => {paste! {
+    ($data_root:ident; $($param:ident: $type:tt),+ $(,)?) => {paste! {
         pub fn bridge(ui: Weak<App>) {
             let Some(ui) = ui.upgrade() else { return };
 
@@ -53,7 +53,7 @@ macro_rules! bridge {
                 let weak = ui.as_weak();
                 let frames = frames.clone();
 
-                $( let mut [<watch_ $param>] = CAR_DATA.$param().watch(); )+
+                $( let mut [<watch_ $param>] = $data_root.$param().watch(); )+
                 let mut unit_system_watch = SETTINGS.user.general.unit_system.watch();
                 let mut first_frame = true;
 
@@ -78,7 +78,7 @@ macro_rules! bridge {
                         $(
                             if refresh_all || [<watch_ $param>].has_changed().unwrap_or(false) {
                                 let value = *[<watch_ $param>].borrow_and_update();
-                                param_convertion_handle!(ui_car_data, unit_system, $param: $type = value);
+                                param_convertion_handle!($data_root, ui_car_data, unit_system, $param: $type = value);
                                 updated = true;
                             }
                         )+
@@ -120,6 +120,8 @@ macro_rules! bridge {
 }
 
 bridge! {
+    CAN_DATA;
+
     engine_rpm: SIDataParameter,
     mt_gear: SStrDataParameter,
 
