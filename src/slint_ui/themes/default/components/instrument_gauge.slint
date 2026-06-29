@@ -1,10 +1,6 @@
 import { Arc } from "@lib/core.slint";
 
-enum RadialCenter {
-    Bottom,
-    Top,
-    Center
-}
+enum RadialCenter { Bottom, Top, Center }
 
 export component RadialRect inherits Rectangle {
     in property <angle> rotation: 0deg;
@@ -142,7 +138,7 @@ export component InstrumentGauge inherits Rectangle {
 
     in property <[InstrumentGaugeRegion]> regions: [
         {
-            start: root.start - 1deg,
+            start: root.start,
             end: root.start + root.angle-range,
             major-ticks: 4,
             minor-ticks: 1,
@@ -162,9 +158,9 @@ export component InstrumentGauge inherits Rectangle {
     ];
 
     for region[index] in regions: Rectangle {
-        // TODO: make sure to respect the tick size when placing them so as to not allow overhanging ticks
         property <angle> angle-range: (region.end - region.start);
-        property <angle> major-tick-angle-step: angle-range / (region.major-ticks - 1);
+        property <float> direction: angle-range < 0deg ? -1 : 1;
+        property <angle> major-tick-angle-step: (angle-range - region.major-tick-size * direction) / (region.major-ticks - 1);
         property <angle> minor-tick-angle-step: major-tick-angle-step / (region.minor-ticks + 1);
         property <int> starting-count: index == 0 ? 0 : regions[index - 1].major-ticks - 1;
 
@@ -176,7 +172,7 @@ export component InstrumentGauge inherits Rectangle {
             height: root.height;
 
             property <angle> start: region.start + major-tick * major-tick-angle-step;
-            property <angle> end: self.start + region.major-tick-size;
+            property <angle> end: self.start + region.major-tick-size * direction;
 
             visible: (region.fill-final-tick || ((major-tick + 1) != region.major-ticks));
 
@@ -206,7 +202,7 @@ export component InstrumentGauge inherits Rectangle {
             if (major-tick + 1) != region.major-ticks: Rectangle {
                 for minor-tick in region.minor-ticks: Arc {
                     start: major-tick-arc.start + (minor-tick + 1) * minor-tick-angle-step;
-                    end: self.start + region.minor-tick-size;
+                    end: self.start + region.minor-tick-size * direction;
 
                     width: root.width;
                     height: root.height;

@@ -72,7 +72,7 @@ export component DefaultTheme inherits Rectangle {
 
                     regions: [
                         {
-                            start: self.start - 0.75deg,
+                            start: self.start,
                             end: self.end,
                             major-ticks: ceil((max + 1) / 1000),
                             major-tick-inner-radius: self.width / 2 - 40px,
@@ -136,7 +136,7 @@ export component DefaultTheme inherits Rectangle {
 
                     regions: [
                         {
-                            start: self.start - 0.4deg,
+                            start: self.start,
                             end: self.start + blueline,
                             major-ticks: 2,
                             major-tick-inner-radius: self.width / 2 - 20px,
@@ -376,7 +376,7 @@ export component DefaultTheme inherits Rectangle {
 
                     regions: [
                         {
-                            start: self.start - 1deg,
+                            start: self.start,
                             end: self.end,
                             major-ticks: final_speed_delim,
                             major-tick-inner-radius: self.width / 2 - 40px,
@@ -463,7 +463,7 @@ export component DefaultTheme inherits Rectangle {
 
                     regions: [
                         {
-                            start: self.start - coolant-temp-gauge.regions[0].major-tick-size,
+                            start: self.start,
                             end: self.end,
                             major-ticks: 2,
                             major-tick-inner-radius: coolant-temp-gauge.regions[0].major-tick-inner-radius,
@@ -479,7 +479,7 @@ export component DefaultTheme inherits Rectangle {
                             fill-final-tick: true,
                         },
                         {
-                            start: self.start - coolant-temp-gauge.regions[0].major-tick-size,
+                            start: self.start,
                             end: self.start + self.blueline,
                             major-ticks: 2,
                             major-tick-inner-radius: coolant-temp-gauge.regions[0].major-tick-inner-radius,
