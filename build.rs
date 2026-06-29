@@ -20,7 +20,6 @@ const OUT_DIR: LazyLock<PathBuf> =
 const GEN_DIR: LazyLock<PathBuf> = LazyLock::new(|| OUT_DIR.join("proj_gen"));
 const SLINT_GEN_DIR: LazyLock<PathBuf> = LazyLock::new(|| GEN_DIR.join("slint"));
 const CAN_CODEGEN_DIR: LazyLock<PathBuf> = LazyLock::new(|| GEN_DIR.join("can/messages"));
-const SVG_FLATTENED_DIR: LazyLock<PathBuf> = LazyLock::new(|| GEN_DIR.join("svg"));
 
 static DBC_DEPS_GEN: LazyLock<Arc<Mutex<Vec<DepEntry>>>> = LazyLock::new(|| Default::default());
 
@@ -42,7 +41,7 @@ static SLINT_LIBRARY_PATHS: LazyLock<HashMap<String, PathBuf>> = LazyLock::new(|
         ("widgets".to_string(), SLINT_PATH.join("widgets/")),
         // resources
         ("images".to_string(), RESOURCES_PATH.join("images/")),
-        ("svg".to_string(), SVG_FLATTENED_DIR.clone()),
+        ("svg".to_string(), RESOURCES_PATH.join("svg/")),
         ("fonts".to_string(), RESOURCES_PATH.join("fonts/")),
         // generated
         ("gen".to_string(), SLINT_GEN_DIR.clone()),
@@ -773,85 +772,11 @@ fn generate_dependencies_rs() {
     fs::write(OUT_DIR.join("dependencies.rs"), out).expect("Failed to write dependencies.rs");
 }
 
-/// strip text out, and imbed the path using out fonts. Slint currently does not do this properly.
-/// TRACKING: https://github.com/slint-ui/slint/issues/8927
-fn flatten_svgs() -> Result<(), Box<dyn std::error::Error>> {
-    let svg_src_dir = RESOURCES_PATH.join("svg");
-    let svg_out_dir = SVG_FLATTENED_DIR.clone();
-
-    if svg_out_dir.exists() {
-        fs::remove_dir_all(&svg_out_dir)?;
-    }
-    fs::create_dir_all(&svg_out_dir)?;
-
-    let mut fontdb = resvg::usvg::fontdb::Database::new();
-    let fonts_dir = RESOURCES_PATH.join("fonts");
-    for entry in WalkDir::new(&fonts_dir) {
-        let entry = entry?;
-        let path = entry.path();
-        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-        if ext != "ttf" && ext != "otf" {
-            continue;
-        }
-
-        let rel = match path.strip_prefix(&fonts_dir) {
-            Ok(rel) => rel.to_string_lossy().replace('\\', "/"),
-            Err(_) => continue,
-        };
-
-        if !rel.contains("/fonts/ttf/") {
-            continue;
-        }
-
-        println!("cargo:rerun-if-changed={}", path.display());
-
-        match fs::read(path) {
-            Ok(data) => fontdb.load_font_data(data),
-            Err(e) => println!("cargo:warning=failed to read font {}: {e}", path.display()),
-        }
-    }
-
-    let usvg_opt = resvg::usvg::Options {
-        fontdb: std::sync::Arc::new(fontdb),
-        ..resvg::usvg::Options::default()
-    };
-    let write_opt = resvg::usvg::WriteOptions::default();
-
-    for entry in WalkDir::new(&svg_src_dir).max_depth(1) {
-        let entry = entry?;
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) != Some("svg") {
-            continue;
-        }
-        println!("cargo:rerun-if-changed={}", path.display());
-
-        let file_name = path.file_name().unwrap();
-        let out_path = svg_out_dir.join(file_name);
-        let data = fs::read(path)?;
-
-        match resvg::usvg::Tree::from_data(&data, &usvg_opt) {
-            Ok(tree) => {
-                fs::write(&out_path, tree.to_string(&write_opt))?;
-            }
-            Err(e) => {
-                println!(
-                    "cargo:warning=failed to flatten {}: {e}; copying source unchanged",
-                    path.display()
-                );
-                fs::copy(path, &out_path)?;
-            }
-        }
-    }
-
-    Ok(())
-}
-
 fn main() {
     build_dbc().unwrap();
     generate_can_data_emulator().unwrap();
     generate_slint_car_data().unwrap();
     generate_slint_themes().unwrap();
-    flatten_svgs().unwrap();
     update_vscode_slint_libpaths();
     generate_dependencies_rs();
 

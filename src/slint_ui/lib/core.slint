@@ -273,15 +273,15 @@ export component ControlledFocusScope inherits Rectangle {
     }
 
     function update-coords() {
-        // TODO: tie to changes in geometry;
-        // TRACKING: https://github.com/slint-ui/slint/issues/7849
-        FocusState.set-focus-box({
-            x: root.absolute-position.x,
-            y: root.absolute-position.y,
-            width: root.width,
-            height: root.height,
-            border-radius: root.border-radius
-        })
+        if has-focus {
+            FocusState.set-focus-box({
+                x: root.absolute-position.x,
+                y: root.absolute-position.y,
+                width: root.width,
+                height: root.height,
+                border-radius: root.border-radius
+            })
+        }
     }
 
     public function force-focus() {
@@ -307,11 +307,11 @@ export component ControlledFocusScope inherits Rectangle {
         }
     }
 
-    changed has-focus => {
-        if has-focus {
-            update-coords();
-        }
-    }
+    changed has-focus => update-coords();
+    changed height => update-coords();
+    changed width => update-coords();
+    changed x => update-coords();
+    changed y => update-coords();
 
     i-touch := TouchArea {
         enabled: root.enabled;
