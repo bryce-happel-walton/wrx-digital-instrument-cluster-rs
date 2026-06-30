@@ -1,7 +1,18 @@
 import { SCarData } from "@gen/data/car_data.slint";
+import { SymbolProperties } from "@themes/default/symbol_properties.slint";
+
+export component SymbolLight inherits Image {
+    in property <float> scale: 1;
+
+    width: SymbolProperties.size * scale;
+    height: SymbolProperties.size * scale;
+    image-fit: ImageFit.contain;
+    colorize: Colors.blueviolet;
+}
 
 export component Odometer inherits HorizontalLayout {
     alignment: center;
+
     odometer-text-section := Rectangle {
         background: transparent;
 
@@ -30,4 +41,62 @@ export component Odometer inherits HorizontalLayout {
             x: odometer-dec-text.x + odometer-dec-text.width;
         }
     }
+}
+
+export component MtGearLabel inherits Text {
+    text: SCarData.reverse_sw.value ? "R" : SCarData.mt_gear.value;
+    color: SCarData.mt_clutch_sw.value ? white.transparentize(60%) : white;
+    font-size: 90px;
+    vertical-alignment: TextVerticalAlignment.center;
+    horizontal-alignment: TextHorizontalAlignment.center;
+}
+
+export component LeftTurnSignal inherits SymbolLight {
+    source: @image-url("@svg/turn-signal-arrow.svg");
+    colorize: SymbolProperties.symbol_color_green;
+    transform-rotation: 180deg;
+
+    visible: SCarData.left_turn_signal_enabled.value;
+}
+
+export component RightTurnSignal inherits SymbolLight {
+    source: @image-url("@svg/turn-signal-arrow.svg");
+    colorize: SymbolProperties.symbol_color_green;
+
+    visible: SCarData.right_turn_signal_enabled.value;
+}
+
+export component HeadlightIndicator inherits SymbolLight {
+    scale: 1.1;
+    source: @image-url("@images/headlight-indicator-light.png");
+    colorize: SymbolProperties.symbol-color-green;
+
+    visible: SCarData.lowbeams_enabled.value;
+    // TODO: check if headlight_dimmer is on during the day when running lights are on
+
+    // the factory cluster does not distinguish between the parking lights and the lowbeams
+    // I believe this to be a safety issue
+    // visible: SCarData.lowbeams_enabled.value || SCarData.parking_lights_enabled.value;
+}
+
+export component DriverSeatbeltIndicator inherits SymbolLight {
+    scale: 0.9;
+    source: @image-url("@images/seatbelt-warning-light.png");
+    colorize: SymbolProperties.symbol-color-red;
+
+    visible: SCarData.driver_seatbelt_warning_enabled.value;
+}
+
+export component CheckEngineLight inherits SymbolLight {
+    source: @image-url("@images/check-engine-warning-light-icon.png");
+    colorize: SymbolProperties.symbol-color-yellow;
+
+    visible: SCarData.check_engine_light_enabled.value;
+}
+
+export component OilPressureWarningLight inherits SymbolLight {
+    source: @image-url("@svg/oil-pressure-warning-light.svg");
+    colorize: SymbolProperties.symbol-color-red;
+
+    visible: SCarData.oil_pressure_warning_light_enabled.value;
 }

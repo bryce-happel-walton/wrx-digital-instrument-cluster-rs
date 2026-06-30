@@ -56,7 +56,7 @@ export global WidgetContainerState {
     }
 }
 
-component Widget inherits FocusDomain {
+export component Widget inherits FocusDomain {
     in-out property <bool> focusable: false;
     in property <image> icon: @image-url("@svg/abs-warning-light.svg");
     out property <int> page-number;
@@ -83,11 +83,32 @@ component Widget inherits FocusDomain {
     exited => WidgetContainerState.exit-page();
 }
 
-component FocusableWidget inherits Widget {
+export component FocusableWidget inherits Widget {
     focusable: true;
 }
 
+export component SettingsMenuWidget inherits FocusableWidget {
+    nav-front-forward => settings-button.focus();
 
+    HorizontalLayout {
+        alignment: center;
+        padding: 20px;
+
+        VerticalLayout {
+            alignment: center;
+
+            Rectangle {
+                settings-button := Button {
+                    text: "Settings";
+
+                    activated => {
+                        ApplicationState.settings-menu-visible = !ApplicationState.settings-menu-visible;
+                    }
+                }
+            }
+        }
+    }
+}
 
 export component WidgetContainer inherits Rectangle {
     forward-focus: center-widget-container-indicator;
@@ -177,79 +198,64 @@ export component WidgetContainer inherits Rectangle {
                     easing: ease-in-out;
                 }
 
-                car-display-widget := Widget {
-                    CarDisplayWidget {
-                        height: 70%;
-                        width: 100%;
-                    }
-                }
-
-                road-indicator-widget := Widget {
-                    RoadIndicatorWidget {
-                        height: 100%;
-                        width: 100%;
-                    }
-                }
-
-                settings-menu-widget := FocusableWidget {
-                    nav-front-forward => settings-button.focus();
-
-                    HorizontalLayout {
-                        alignment: center;
-                        padding: 20px;
-
-                        VerticalLayout {
-                            alignment: center;
-
-                            Rectangle {
-                                settings-button := Button {
-                                    text: "Settings";
-
-                                    activated => {
-                                        ApplicationState.settings-menu-visible = !ApplicationState.settings-menu-visible;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                FocusableWidget {
-                    nav-front-forward => FocusState.force-focus(can-display-widget.first-focus-id);
-                    nav-end-backward => FocusState.force-focus(can-display-widget.last-focus-id);
-
-                    can-display-widget := CanDisplayWidget {
-                        running: parent.has-focus && (WidgetContainerState.current-page == parent.page-number);
-                        height: 100%;
-                        width: 100%;
-                    }
-
-                    if !self.has-focus: Rectangle {
-                        height: 80%;
-                        width: 80%;
-
-                        background: black.transparentize(5%);
-                        Text {
-                            text: "Enter to run";
-                            font-size: 25px;
-                        }
-                    }
-                }
-
-                if DebugSettings.debug-mode: FocusableWidget {
-                    nav-front-forward => debug-menu-widget.focus();
-
-                    VerticalLayout {
-                        debug-menu-widget := DebugMenuWidget {
-                            height: 100%;
-                            width: 100%;
-                        }
-                    }
-                }
+                @children
             }
         }
     }
 }
+
+export component DefaultWidgetContainer inherits WidgetContainer {
+    car-display-widget := Widget {
+        CarDisplayWidget {
+            height: 70%;
+            width: 100%;
+        }
+    }
+
+    road-indicator-widget := Widget {
+        RoadIndicatorWidget {
+            height: 100%;
+            width: 100%;
+        }
+    }
+
+    settings-menu-widget := SettingsMenuWidget { }
+
+    FocusableWidget {
+        nav-front-forward => FocusState.force-focus(can-display-widget.first-focus-id);
+        nav-end-backward => FocusState.force-focus(can-display-widget.last-focus-id);
+
+        can-display-widget := CanDisplayWidget {
+            running: parent.has-focus && (WidgetContainerState.current-page == parent.page-number);
+            height: 100%;
+            width: 100%;
+        }
+
+        if !self.has-focus: Rectangle {
+            height: 80%;
+            width: 80%;
+
+            background: black.transparentize(5%);
+            Text {
+                text: "Enter to run";
+                font-size: 25px;
+            }
+        }
+    }
+
+    if DebugSettings.debug-mode: FocusableWidget {
+        nav-front-forward => debug-menu-widget.focus();
+
+        VerticalLayout {
+            debug-menu-widget := DebugMenuWidget {
+                height: 100%;
+                width: 100%;
+            }
+        }
+    }
+}
+
+
 
 export component WidgetContainerStateDebugModule inherits VerticalLayout {
     Text {

@@ -112,11 +112,14 @@ export component Tachometer inherits Rectangle {
                 label := Text {
                     x: parent.width / 2 - self.width / 2;
                     y: parent.height / 2 - self.height / 2;
-                    color: parent.brush;
+                    color: SCarData.engine_rpm.value >= major-tick-line * root.rpm-denominator
+                        ? white
+                        : white.transparentize(60%);
                     text: major-tick-line;
                     horizontal-alignment: center;
                     vertical-alignment: center;
                     font-size: 35px;
+                    font-family: "JetBrains Mono";
                 }
             }
         }

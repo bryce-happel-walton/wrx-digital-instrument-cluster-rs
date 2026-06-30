@@ -13,10 +13,29 @@ import {
     ApplicationState,
     GeneralSettings,
 } from "@lib/state.slint";
-import { WidgetContainer } from "@widgets/widget_container.slint";
+import {
+    WidgetContainer,
+    Widget,
+    FocusableWidget,
+    SettingsMenuWidget,
+} from "@widgets/widget_container.slint";
 import { Tachometer } from "components/tachometer.slint";
-import { GaugeContainer } from "components/generic-gauge.slint";
-import { Odometer } from "../default/components/common.slint";
+import { GaugeContainer } from "components/generic_gauge.slint";
+import {
+    Odometer,
+    MtGearLabel,
+    SymbolLight,
+    RightTurnSignal,
+    LeftTurnSignal,
+    HeadlightIndicator,
+    DriverSeatbeltIndicator,
+    CheckEngineLight,
+    OilPressureWarningLight,
+} from "@themes/default/components/common.slint";
+import {
+    RoadIndicatorWidget,
+} from "@themes/default/components/road_indicators.slint";
+import { CarDisplayWidget } from "@widgets/car_display.slint";
 
 component PrimarySection inherits Rectangle {
     background: transparent;
@@ -51,7 +70,8 @@ export component TrackTheme inherits Rectangle {
                     height: 30%;
 
                     tachometer := Tachometer {
-                        width: 85%;
+                        width: 80%;
+                        height: 70%;
 
                         Text {
                             font-size: 20px;
@@ -65,40 +85,59 @@ export component TrackTheme inherits Rectangle {
                 }
 
                 Rectangle {
-                    speedometer-label := Text {
-                        y: gear-indicator.y;
-                        x: parent.width * 20%;
+                    RoadIndicatorWidget {
+                        y: parent.height - self.height * 0.75;
+                        width: 35%;
+                        height: 120%;
+                    }
 
+                    mt-gear-label := MtGearLabel {
+                        y: parent.height / 2 - self.height * 0.85;
+                        font-size: 165px;
+                    }
+
+                    speedometer-label := Text {
+                        font-family: "JetBrains Mono";
+                        y: mt-gear-label.y + mt-gear-label.height;
                         text: round(SCarData.vehicle_speed.value);
                         color: white;
-                        font-size: 90px;
-
+                        font-size: 95px;
                         vertical-alignment: TextVerticalAlignment.center;
                         horizontal-alignment: TextHorizontalAlignment.center;
                     }
 
                     speedometer-unit-label := Text {
-                        x: speedometer-label.x;
-                        y: speedometer-label.y + speedometer-label.height * 1.10;
+                        y: speedometer-label.y + speedometer-label.height;
+                        x: speedometer-label.x + speedometer-label.width / 2 - self.width / 2;
                         text: SCarData.vehicle_speed.unit-str;
                         color: speedometer-label.color.transparentize(75%);
-                        font-size: speedometer-label.font-size * 70%;
+                        font-size: 25px;
                         horizontal-alignment: TextHorizontalAlignment.center;
                     }
 
-                    gear-indicator := Text {
-                        color: white;
-                        text: SCarData.mt_gear.value;
-                        font-size: 150px;
+                    left-turn-signal := LeftTurnSignal {
+                        x: parent.width / 2 - self.width * 4;
+                        y: parent.height / 2 - self.height * 1.75;
+                    }
 
-                        vertical-alignment: TextVerticalAlignment.center;
-                        horizontal-alignment: TextHorizontalAlignment.center;
+                    right-turn-signal := RightTurnSignal {
+                        x: parent.width - left-turn-signal.x - left-turn-signal.width;
+                        y: left-turn-signal.y;
                     }
 
                     WidgetContainer {
                         x: parent.width - parent.width * 30%;
                         height: parent.height * 90%;
                         width: 15%;
+
+                        car-display-widget := Widget {
+                            CarDisplayWidget {
+                                height: 70%;
+                                width: 100%;
+                            }
+                        }
+
+                        SettingsMenuWidget { }
                     }
                 }
             }
@@ -107,10 +146,10 @@ export component TrackTheme inherits Rectangle {
         bottom-span := PrimarySection {
             i-left-gauge-stack := HorizontalLayout {
                 alignment: start;
-                padding: 20px;
+                padding: 25px;
 
                 i-left-gauge-stack-vertical := VerticalLayout {
-                    width: 18%;
+                    width: 20%;
                     spacing: 5px;
                     alignment: end;
 
@@ -143,7 +182,35 @@ export component TrackTheme inherits Rectangle {
                 }
             }
 
-            Odometer { }
+            odometer := Odometer { }
+
+            i-left-indicator-stack := HorizontalLayout {
+                padding: 10px;
+                spacing: 5px;
+                width: self.preferred-width;
+                height: self.preferred-height;
+                x: i-left-gauge-stack-vertical.x + i-left-gauge-stack-vertical.width + 40px;
+                y: 0 + bottom-span.height - self.height;
+                alignment: start;
+
+                HeadlightIndicator { }
+
+                DriverSeatbeltIndicator { }
+            }
+
+            i-right-indicator-stack := HorizontalLayout {
+                padding: 10px;
+                spacing: 5px;
+                width: self.preferred-width;
+                height: self.preferred-height;
+                x: i-right-gauge-stack-vertical.x - self.width - 40px;
+                y: 0 + bottom-span.height - self.height;
+                alignment: end;
+
+                CheckEngineLight { }
+
+                OilPressureWarningLight { }
+            }
         }
     }
 }

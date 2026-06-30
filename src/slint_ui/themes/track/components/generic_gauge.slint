@@ -1,6 +1,6 @@
 import { SFDataParameter, SIDataParameter } from "@data/data_parameter.slint";
-import { SymbolLight } from "../../default/default_main.slint";
-import { SymbolProperties } from "../../default/symbol_properties.slint";
+import { SymbolLight } from "@themes/default/components/common.slint";
+import { SymbolProperties } from "@themes/default/symbol_properties.slint";
 
 
 export component PillGauge inherits Rectangle {
@@ -169,7 +169,7 @@ export component BarGauge {
 export component GaugeContainer inherits Rectangle {
     in property <SFDataParameter> data-parameter <=> gauge.data-parameter;
     in property <image> image;
-    in property <float> image-scale: 40%;
+    in property <float> image-scale: 55%;
     in property <SideAlignment> alignment: left;
 
     i-layout := HorizontalLayout {
