@@ -157,7 +157,7 @@ export component WidgetContainer inherits Rectangle {
                     }
 
                     init => {
-                        if (i == 0) && ((WidgetContainerState.current-page > WidgetContainerState.num-pages) || (WidgetContainerState.current-page < 0)) {
+                        if (i == 0) && ((WidgetContainerState.current-page >= WidgetContainerState.num-pages) || (WidgetContainerState.current-page < 0)) {
                             i-focus.focus();
                         } else {
                             attempt-focus();
