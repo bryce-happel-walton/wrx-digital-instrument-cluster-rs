@@ -2,7 +2,7 @@
     name         = "wrx-digital-instrument-cluster-rs"
     description  = "A digital instrument cluster for the 2018 Subaru WRX"
     repository   = "https://github.com/Hentai-Racing/wrx-digital-instrument-cluster-rs"
-    version      = "0.33.0"                                                             # Only 1.0.0 when ALL factory features exist
+    version      = "0.34.0"                                                             # Only 1.0.0 when ALL factory features exist
     authors      = ["Bryce Happel Walton <brycewaltonmail@gmail.com>"]
     edition      = "2024"
     build        = "build.rs"
@@ -16,7 +16,7 @@
     slcan       = ["dep:slcan", "dep:serial"]
 
 [dependencies]
-    slint        = { version = "1.16.1", default-features = false, features = ["compat-1-2", "std"] }
+    slint        = { version = "1.17.1", default-features = false, features = ["compat-1-2", "std"] }
     async-compat = "*"
     rand         = "*"
     pastey       = "*"
@@ -44,7 +44,7 @@
     socketcan = "*"
 
 [build-dependencies]
-    slint-build    = { version = "1.16.1" }
+    slint-build    = "*"
     dbc-codegen    = { git = "https://github.com/bryce-happel-walton/dbc-codegen.git", branch = "main", features = ["std"] } #* https://github.com/technocreatives/dbc-codegen/pull/97
     syn            = "*"
     regex          = "*"
