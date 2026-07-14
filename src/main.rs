@@ -8,12 +8,14 @@ mod util;
 
 use crate::application::global_state::GLOBAL_STATE;
 use crate::application::settings::SETTINGS;
-use crate::can::can_backend::{CanBackend, CanFrame, CanInterface};
+use crate::can::acquisition::Acquisition;
+use crate::can::bus::CanBus;
+use crate::can::can_backend::{CanBackend, CanInterface};
 use crate::can::emulators::wrx_2018_emulator;
-use crate::can::messages::wrx_2018::CanError;
-use crate::can::mux_context::{self, MuxContext, MuxParseResult};
-use crate::can::parsers::iso_tp::*;
-use crate::data::car::wrx_2018::{CAN_DATA, ParseError};
+use crate::can::protocol::isotp::FUNCTIONAL_REQUEST_ID;
+use crate::can::protocol::isotp::parser::obd2::{OBD2Service, S1CurrentData, S9VehicleInformation};
+use crate::data::car::wrx_2018::CAN_DATA;
+use crate::data::obd_data::OBD_DATA;
 use crate::debug::debug_entry;
 use crate::hardware::hardware_backend::{self, HardwareBackend};
 use crate::slint_ui::backend::{
@@ -21,12 +23,12 @@ use crate::slint_ui::backend::{
     rs_type_resolver, settings_bridge, state_bridge,
 };
 
+use embedded_can::{Id, StandardId};
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, Pid, ProcessRefreshKind, RefreshKind, System};
 use tokio::signal;
 use tokio::sync::Notify;
 use tokio::time::{self, Duration};
 
-use std::collections::VecDeque;
 use std::env;
 use std::sync::{Arc, LazyLock};
 
@@ -56,114 +58,66 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    if let Some(mut can_backend) = can_backend {
+    if let Some(can_backend) = can_backend {
+        let mut bus = CanBus::new(GLOBAL_STATE.can.interface_path.value(), can_backend);
+
+        let obd_functional: Id = StandardId::new(FUNCTIONAL_REQUEST_ID as u16)
+            .unwrap()
+            .into();
+        for acq in [
+            Acquisition::from_isotp(
+                obd_functional,
+                &OBD2Service::VehicleInformation,
+                &[
+                    S9VehicleInformation::PIDs,
+                    S9VehicleInformation::VIN,
+                    S9VehicleInformation::ECU,
+                ],
+            ),
+            Acquisition::from_isotp(
+                obd_functional,
+                &OBD2Service::CurrentData,
+                &[
+                    S1CurrentData::PIDs1,
+                    S1CurrentData::PIDs2,
+                    S1CurrentData::PIDs3,
+                ],
+            ),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            bus.acquire(acq);
+        }
+
+        bus.on_acquisitions_complete(|| {
+            OBD_DATA.initialized.set_value(true);
+        });
+
+        let powertrain: Id = StandardId::new(0x7E0).unwrap().into();
+        for pid in [
+            S1CurrentData::EngineLoad as u8,
+            S1CurrentData::EngineSpeed as u8,
+            S1CurrentData::ControlModuleVoltage as u8,
+            S1CurrentData::EngineFuelRate as u8,
+            S1CurrentData::Odometer as u8,
+        ] {
+            bus.poll(
+                powertrain,
+                vec![OBD2Service::CurrentData as u8, pid],
+                Duration::from_millis(100),
+            );
+        }
+
         let weak_ui = ui.as_weak();
         tokio::spawn(async move {
-            let obd_id =
-                unsafe { embedded_can::Id::from(embedded_can::StandardId::new_unchecked(0x7E0)) };
-
-            // TESTING
-            // let mut mux_context = MuxContext::new(can_backend);
-            // let mut queue = VecDeque::from(vec![
-            //     // CanFrame::new(
-            //     //     obd_id,
-            //     //     8,
-            //     //     &[
-            //     //         0x02,
-            //     //         OBDService::CurrentData.into(),
-            //     //         S1CurrentData::PIDs1.into(),
-            //     //     ],
-            //     // ),
-            //     // CanFrame::new(
-            //     //     obd_id,
-            //     //     8,
-            //     //     &[
-            //     //         0x02,
-            //     //         OBDService::VehicleInformation.into(),
-            //     //         S9VehicleInformation::PIDs.into(),
-            //     //     ],
-            //     // ),
-            //     // CanFrame::new(
-            //     //     obd_id,
-            //     //     8,
-            //     //     &[
-            //     //         0x02,
-            //     //         OBDService::VehicleInformation.into(),
-            //     //         S9VehicleInformation::VIN.into(),
-            //     //     ],
-            //     // ),
-            //     // CanFrame::new(obd_id, 8, &[0x01, OBDService::StoredDTCs.into()]),
-            // ]);
-
             let running_can = &SETTINGS.developer.can.running_can;
 
             loop {
                 if running_can.value() {
-                    if let Some(frame) = can_backend.read_frame() {
+                    if let Some(frame) = bus.process_frame() {
                         can_display::update(weak_ui.clone(), &frame, false);
-
-                        match CAN_DATA.parse_frame(&frame) {
-                            Ok(result) => match result {
-                                //? CAR_DARA.parse_frame does not do any demuxing currently
-                                // ParseResult::Mux(result) => match result {
-                                //     MuxParseResult::AwaitingBroadcastAck => {
-                                //         let ack = ISOTPAckFrame::new(obd_id);
-                                //         queue.push_front(CanFrame::from_frame(&ack));
-                                //     }
-                                //     _ => {}
-                                // },
-                                _ => {}
-                            },
-                            Err(e) => match e {
-                                ParseError::CanError(e) => match e {
-                                    CanError::UnknownMessageId(_id) => {
-                                        //     match mux_context.parse_frame(&frame) {
-                                        //         Ok(result) => match result {
-                                        //             MuxParseResult::AwaitingBroadcastAck => {
-                                        //                 // TODO: we need to track the current proprietor of the conversation for any given id
-                                        //                 let ack = ISOTPAckFrame::new(obd_id);
-                                        //                 queue.push_front(CanFrame::from_frame(&ack));
-                                        //             }
-                                        //             _ => {}
-                                        //         },
-                                        //         Err(e) => match e {
-                                        //             mux_context::MuxParseError::UnknownMessageId => {
-                                        //                 // TODO: propogate to other parsing mechanisms
-                                        //             }
-                                        //             _ => println!(
-                                        //                 "Context failed to parse frame {frame:?}: {e:?}"
-                                        //             ),
-                                        //         },
-                                        //     }
-                                    }
-                                    _ => {
-                                        crate::util::performance::record_can_frame_lost();
-                                        println!("Failed to parse frame {frame:?}: {e:?}");
-                                    }
-                                },
-                                _ => {
-                                    crate::util::performance::record_can_frame_lost();
-                                    println!("Failed to parse frame {frame:?}: {e:?}");
-                                }
-                            },
-                        }
-
-                        crate::util::performance::record_can_frame_parsed();
-                    };
-
-                    // if !mux_context.is_waiting_for_responce() {
-                    //     if let Some(frame) = queue.pop_front() {
-                    //         match can_backend.write_frame(frame) {
-                    //             Ok(_) => {
-                    //                 // TODO: track this transaction to determine whether this conversation is ours
-                    //                 println!("Wrote frame: {frame:?}")
-                    //             }
-                    //             Err(e) => {
-                    //                 eprintln!("Failed to write to can_socket: {e:?}");
-                    //             }
-                    //         }
-                    //     }
-                    // }
+                    }
 
                     tokio::task::yield_now().await;
                 } else {

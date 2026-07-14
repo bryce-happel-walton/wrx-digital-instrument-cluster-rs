@@ -1,5 +1,4 @@
 use crate::can::messages::wrx_2018::{self, DimmerAndHoodDimmerDialValue, EngineMtGear, Messages};
-use crate::can::mux_context::{MuxParseError, MuxParseResult};
 use crate::data::parameters::DataParameter;
 use crate::data::units::Unit::*;
 use crate::data::units::UnitSystem::{self};
@@ -243,43 +242,13 @@ CanData! {
     };
 }
 
-#[allow(unused)]
-#[derive(Debug)]
-pub enum ParseResult {
-    Mux(MuxParseResult),
-    Simple,
-}
-
-#[allow(unused)]
-#[derive(Debug)]
-pub enum ParseError {
-    MuxError(MuxParseError),
-    CanError(wrx_2018::CanError),
-}
-
-impl std::fmt::Display for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::MuxError(e) => e.fmt(f),
-            Self::CanError(e) => e.fmt(f),
-        }
-    }
-}
-
 impl CanData {
-    pub fn parse_frame(&self, frame: &impl Frame) -> Result<ParseResult, ParseError> {
+    pub fn parse_frame(&self, frame: &impl Frame) -> Result<(), wrx_2018::CanError> {
         let data = &frame.data()[..frame.dlc()];
+        let message = Messages::from_can_message(frame.id(), data)?;
 
-        match Messages::from_can_message(frame.id(), data) {
-            Ok(message) => {
-                // TODO: process_message should have a failure path
-                self.process_message(&message);
-                Ok(ParseResult::Simple)
-            }
-            Err(e) => match e {
-                _ => Err(ParseError::CanError(e)),
-            },
-        }
+        self.process_message(&message);
+        Ok(())
     }
 
     fn dimmer_dial_override(

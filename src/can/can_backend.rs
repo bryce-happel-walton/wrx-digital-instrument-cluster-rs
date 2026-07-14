@@ -7,7 +7,7 @@ use std::error::Error;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[cfg(target_os = "linux")]
 use socketcan::Socket;
@@ -56,18 +56,20 @@ pub enum CanSocket {
 pub struct CanFrame {
     id: Id,
     dlc: usize,
-    data: [u8; 8],
+    data: [u8; Self::MAX_FRAME_SIZE],
 }
 
 impl CanFrame {
+    pub const MAX_FRAME_SIZE: usize = 8;
+
     pub fn new(id: Id, dlc: usize, data: &[u8]) -> Self {
-        let mut buffer = [0u8; 8];
-        let len = data.len().min(8);
+        let mut buffer = [0u8; Self::MAX_FRAME_SIZE];
+        let len = data.len().min(Self::MAX_FRAME_SIZE);
         buffer[..len].copy_from_slice(&data[..len]);
 
         Self {
             id,
-            dlc,
+            dlc: dlc.min(Self::MAX_FRAME_SIZE),
             data: buffer,
         }
     }
@@ -82,8 +84,9 @@ impl Frame for CanFrame {
         Some(CanFrame::new(id.into(), data.len(), data))
     }
 
-    fn new_remote(_id: impl Into<Id>, _dlc: usize) -> Option<Self> {
-        None
+    #[allow(unused)]
+    fn new_remote(id: impl Into<Id>, dlc: usize) -> Option<Self> {
+        unimplemented!()
     }
 
     fn is_extended(&self) -> bool {
@@ -103,7 +106,60 @@ impl Frame for CanFrame {
     }
 
     fn data(&self) -> &[u8] {
-        &self.data
+        &self.data[..self.dlc]
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TimestampedCanFrame {
+    frame: CanFrame,
+    pub instant: Instant,
+}
+
+impl TimestampedCanFrame {
+    pub fn now(frame: &impl Frame) -> Self {
+        Self {
+            frame: CanFrame::from_frame(frame),
+            instant: Instant::now(),
+        }
+    }
+}
+
+impl Frame for TimestampedCanFrame {
+    fn data(&self) -> &[u8] {
+        self.frame.data()
+    }
+
+    fn dlc(&self) -> usize {
+        self.frame.dlc()
+    }
+
+    fn id(&self) -> Id {
+        self.frame.id()
+    }
+
+    fn is_data_frame(&self) -> bool {
+        self.frame.is_data_frame()
+    }
+
+    fn is_extended(&self) -> bool {
+        self.frame.is_extended()
+    }
+
+    fn is_remote_frame(&self) -> bool {
+        self.frame.is_remote_frame()
+    }
+
+    fn is_standard(&self) -> bool {
+        self.frame.is_standard()
+    }
+
+    fn new(id: impl Into<Id>, data: &[u8]) -> Option<Self> {
+        Some(Self::now(&CanFrame::new(id.into(), data.len(), data)))
+    }
+
+    fn new_remote(_id: impl Into<Id>, _dlc: usize) -> Option<Self> {
+        None
     }
 }
 
