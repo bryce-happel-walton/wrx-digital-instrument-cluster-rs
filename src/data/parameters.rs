@@ -331,6 +331,61 @@ impl fmt::Display for Node {
     }
 }
 
+pub trait ParameterStruct {
+    fn apply(&self, from: Self)
+    where
+        Self: Sized;
+
+    fn set_by_path(&self, param_path: &str, value: &str);
+
+    fn get_by_path(&self, param_path: &str) -> Option<(String, Box<dyn std::any::Any>)>;
+
+    fn get_page_layout(&self) -> &'static Node;
+
+    fn unroll_path<'a>(
+        &self,
+        split_path: &Vec<&str>,
+        current_path: String,
+        current_depth: usize,
+        node: Option<&'a Node>,
+    ) -> (&'a Node, String) {
+        let node = node.unwrap_or(self.get_page_layout());
+        if split_path.len() != current_depth {
+            if let Node::Page { name: _, items } = node {
+                for item in items {
+                    if let Node::Page { name, items: _ } = item {
+                        if let Some(current_item) = split_path.get(current_depth + 1) {
+                            if current_item == name {
+                                return self.unroll_path(
+                                    split_path,
+                                    format!("{}.", split_path[..=current_depth].join(".")),
+                                    current_depth + 1,
+                                    Some(item),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        (node, current_path)
+    }
+
+    fn resolve_node<'a>(&self, path: &'a str, layout_node: Option<&'a Node>) -> Option<&'a str> {
+        if let Node::Page { name, items: _ } = layout_node.unwrap_or(self.get_page_layout()) {
+            path.strip_prefix(&format!("{}.", *name))
+        } else {
+            None
+        }
+    }
+
+    fn resolve_path(&self, path: &str) -> Option<(String, Box<dyn std::any::Any>)> {
+        self.resolve_node(path, None)
+            .and_then(|path| self.get_by_path(path))
+    }
+}
+
 /// Defines a serdes capable structure with parameter fields and optional default values.
 /// Capable of having multiple pages
 /// TODO: add example (src/application/settings.rs:@Settings)
@@ -361,12 +416,12 @@ macro_rules! parameter_struct {
         }
 
         #[allow(unused)]
-        impl [<$page:camel_edge>] {
-            pub fn apply(&self, from: Self) {
+        impl $crate::data::parameters::ParameterStruct for [<$page:camel_edge>] {
+            fn apply(&self, from: Self) {
                 $crate::parameter_struct!(@apply self, from| $($entries)*);
             }
 
-            pub fn set_by_path(&self, param_path: &str, value: &str) {
+            fn set_by_path(&self, param_path: &str, value: &str) {
                 let (target, path) = match param_path.split_once('.') {
                     Some((root, path)) => {(root, path)}
                     _ => {(param_path, "")}
@@ -375,7 +430,7 @@ macro_rules! parameter_struct {
                 $crate::parameter_struct!(@path-set self target; path; value| $($entries)*)
             }
 
-            pub fn get_by_path(&self, param_path: &str) -> Option<(String, Box<dyn std::any::Any>)> {
+            fn get_by_path(&self, param_path: &str) -> Option<(String, Box<dyn std::any::Any>)> {
                 let (target, path) = match param_path.split_once('.') {
                     Some((root, path)) => {(root, path)}
                     _ => {(param_path, "")}
@@ -384,7 +439,7 @@ macro_rules! parameter_struct {
                 $crate::parameter_struct!(@path-get self target; path;| $($entries)*)
             }
 
-            pub fn get_page_layout(&self) -> &'static $crate::data::parameters::Node {
+            fn get_page_layout(&self) -> &'static $crate::data::parameters::Node {
                 static [<$page:upper _LAYOUT>]: std::sync::OnceLock<$crate::data::parameters::Node> = std::sync::OnceLock::new();
                 [<$page:upper _LAYOUT>].get_or_init(||
                     $crate::parameter_struct!(@node $page self| $($entries)*)
@@ -458,11 +513,14 @@ macro_rules! parameter_struct {
             ty: stringify!($ty)
         }
     };
+    (@node-internal $self:ident| page [hidden] $sub:ident) => {
+        &$crate::data::parameters::Node::HiddenParameter
+    };
     (@node-internal $self:ident| page [$sub_condition:expr] $sub:ident) => {
         if $sub_condition {
             $self.$sub.get_page_layout()
         } else {
-            &$crate::data::parameters::Node::HiddenParameter
+            $crate::parameter_struct!(@node-internal $self| page [hidden] $sub)
         }
     };
     (@node-internal $self:ident| page $sub:ident) => {

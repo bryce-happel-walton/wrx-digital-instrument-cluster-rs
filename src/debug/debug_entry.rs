@@ -1,3 +1,4 @@
+use crate::data::parameters::ParameterStruct;
 use crate::hardware::hardware_backend::{self, HARDWARE_NAVIGATION_INPUT};
 use crate::{CAN_DATA, GLOBAL_STATE, SETTINGS, SHUTDOWN_SIGNAL};
 

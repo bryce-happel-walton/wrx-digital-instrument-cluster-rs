@@ -1,5 +1,5 @@
 use crate::application::settings::{FnTrigger, FnTriggers, PageTrigger, SETTINGS};
-use crate::data::parameters::{Bound, Node};
+use crate::data::parameters::{Bound, Node, ParameterStruct};
 use crate::slint_generatedApp::{
     AccessibilitySettings, App, ApplicationState, AttributionItem, DebugSettings, DerivedParamType,
     GeneralSettings, GlobalThemeData, Performance, SBoundInt, SettingsLayout, SettingsMenuItem,
@@ -9,18 +9,6 @@ use crate::slint_generatedApp::{
 use pastey::paste;
 use slint::{ComponentHandle, Weak};
 use tokio::select;
-
-fn resolve_node<'a>(path: &'a str, layout_node: &'a Node) -> Option<&'a str> {
-    if let Node::Page { name, items: _ } = layout_node {
-        path.strip_prefix(&format!("{}.", *name))
-    } else {
-        None
-    }
-}
-
-fn resolve_path(path: &str) -> Option<(String, Box<dyn std::any::Any>)> {
-    resolve_node(path, SETTINGS.get_page_layout()).and_then(|path| SETTINGS.get_by_path(path))
-}
 
 macro_rules! bind_settings {
     ($({$slint_global:ident.$param:tt <=$direction:tt $root:ident.$($tail:ident).+}),+ $(,)? ) => {paste! {
@@ -97,10 +85,9 @@ pub fn bridge(handle_weak: Weak<App>) {
 
         ui_layout.on_get_page_layout(move |path| {
             let path: Vec<&str> = path.split_terminator(".").collect();
-            let (layout, current_path) =
-                unroll_path(SETTINGS.get_page_layout(), &path, String::new(), 0);
+            let (layout, current_path) = SETTINGS.unroll_path(&path, String::new(), 0, None);
+            let ret = flatten_layout(layout, &current_path, 0, 1);
 
-            let ret = unroll_layout(layout, &current_path, 0, 1);
             ret.as_slice()[1..].into() // remove the current page as an entry
         });
 
@@ -111,33 +98,38 @@ pub fn bridge(handle_weak: Weak<App>) {
         });
 
         ui_layout.on_set_by_path(move |path, value| {
-            resolve_node(path.as_str(), SETTINGS.get_page_layout())
+            SETTINGS
+                .resolve_node(path.as_str(), None)
                 .map(|path| SETTINGS.set_by_path(path, &value.as_str()));
         });
 
         ui_layout.on_get_by_path(move |path| {
-            resolve_path(path.as_str())
+            SETTINGS
+                .resolve_path(path.as_str())
                 .map(|(display, _)| display)
                 .unwrap_or(String::from("error"))
                 .into()
         });
 
         ui_layout.on_get_bound_int(move |path| {
-            resolve_path(path.as_str())
+            SETTINGS
+                .resolve_path(path.as_str())
                 .and_then(|(_, value)| value.downcast_ref::<Bound<i32>>().copied())
                 .unwrap_or_default()
                 .into()
         });
 
         ui_layout.on_get_bool(move |path| {
-            resolve_path(path.as_str())
+            SETTINGS
+                .resolve_path(path.as_str())
                 .and_then(|(_, value)| value.downcast_ref::<bool>().copied())
                 .unwrap_or_default()
                 .into()
         });
 
         ui_layout.on_get_settings_special_page(move |path| {
-            resolve_path(path.as_str())
+            SETTINGS
+                .resolve_path(path.as_str())
                 .and_then(|(_, value)| value.downcast_ref::<PageTrigger>().copied())
                 .unwrap_or_default()
                 .into()
@@ -145,7 +137,8 @@ pub fn bridge(handle_weak: Weak<App>) {
 
         ui_layout.on_trigger_fn(move |path| {
             match Into::<FnTriggers>::into(
-                resolve_path(path.as_str())
+                SETTINGS
+                    .resolve_path(path.as_str())
                     .and_then(|(_, value)| value.downcast_ref::<FnTrigger>().copied())
                     .unwrap_or_default(),
             ) {
@@ -201,7 +194,7 @@ impl From<&str> for DerivedParamType {
     }
 }
 
-fn unroll_layout(
+fn flatten_layout(
     node: &Node,
     current_path: &String,
     mut current_depth: usize,
@@ -245,39 +238,11 @@ fn unroll_layout(
 
             for item in items {
                 ret.extend_from_slice(
-                    unroll_layout(item, &child_path, current_depth, max_depth).as_slice(),
+                    flatten_layout(item, &child_path, current_depth, max_depth).as_slice(),
                 );
             }
         }
     }
 
     ret
-}
-
-fn unroll_path<'a>(
-    node: &'a Node,
-    split_path: &Vec<&str>,
-    current_path: String,
-    current_depth: usize,
-) -> (&'a Node, String) {
-    if split_path.len() != current_depth {
-        if let Node::Page { name: _, items } = node {
-            for item in items {
-                if let Node::Page { name, items: _ } = item {
-                    if let Some(current_item) = split_path.get(current_depth + 1) {
-                        if current_item == name {
-                            return unroll_path(
-                                item,
-                                split_path,
-                                format!("{}.", split_path[..=current_depth].join(".")),
-                                current_depth + 1,
-                            );
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    (node, current_path)
 }

@@ -1,6 +1,6 @@
 use crate::application::dependencies::DEPENDENCIES;
 use crate::application::global_state::GLOBAL_STATE;
-use crate::data::parameters::Bound;
+use crate::data::parameters::{Bound, ParameterStruct};
 use crate::data::units::UnitSystem;
 use crate::slint_generatedApp::{ClusterTheme, SettingsPageTarget};
 use crate::slint_ui::backend::lang::StrLang;
@@ -71,7 +71,7 @@ crate::parameter_struct! {Settings {
             selected_theme: ClusterTheme = ClusterTheme::Default,
         },
 
-        [false] save_state {
+        [hidden] save_state {
             last_widget_index: i32 = 0,
         },
     },
@@ -117,17 +117,17 @@ crate::parameter_struct! {Settings {
     },
 
     diagnostics {
-        obd {
+        obd2 {
             read_codes: FnTrigger = FnTrigger(FnTriggers::OBD2CodeRead),
             read_vin: FnTrigger = FnTrigger(FnTriggers::OBD2VinRead),
         },
 
         uds {},
 
-        // TODO: vehicle specific things should be covered by a feature config later
-        cobb {},
-
-        subaru_select_monitor {},
+        ssm2 {
+            // TODO: vehicle specific things should be covered by a feature config later
+            cobb {},
+        },
     },
 
     about {
