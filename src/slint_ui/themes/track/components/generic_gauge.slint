@@ -2,6 +2,7 @@ import { SFDataParameter, SIDataParameter } from "@data/data_parameter.slint";
 import { SymbolLight } from "@themes/default/components/common.slint";
 import { SymbolProperties } from "@themes/default/symbol_properties.slint";
 
+export enum SideAlignment { right, left }
 
 export component PillGauge inherits Rectangle {
     in property <SFDataParameter> data-parameter;
@@ -128,40 +129,47 @@ export component PillGauge inherits Rectangle {
     @children
 }
 
-export enum SideAlignment { right, left }
 
 
 export component BarGauge {
     in property <SideAlignment> alignment: left;
     in property <SFDataParameter> data-parameter;
     property <float> progress: data-parameter.value / data-parameter.max;
-    in property <length> line-thickness: 2px;
-    in property <float> bar-padding: 2;
+    in property <length> line-thickness: 2.5px;
+    in property <length> bar-padding: 10px;
 
-    HorizontalLayout {
-        width: 100%;
-        spacing: 5px;
+    left-bar := Rectangle {
+        x: 0;
+        height: root.height / 1.25;
+        width: line-thickness;
+        background: white;
+    }
 
-        Rectangle {
-            height: 100%;
-            width: line-thickness;
-            background: white;
-        }
+    right-bar := Rectangle {
+        x: parent.width - self.width;
+        height: left-bar.height;
+        width: line-thickness;
+        background: white;
+    }
 
-        Rectangle {
-            background: grey.transparentize(85%);
-            Rectangle {
-                x: (alignment == SideAlignment.left ? 0 : parent.width - root.progress * parent.width);
-                background: white.mix(black, 75%);
-                width: root.progress * parent.width;
-            }
-        }
+    bottom-bar := Rectangle {
+        width: root.width - bar-padding;
+        y: parent.height - self.height;
+        height: line-thickness / 2;
+        background: white;
+    }
 
-        Rectangle {
-            height: 100%;
-            width: line-thickness;
-            background: white;
-        }
+    indicator-bar := Rectangle {
+        x: (alignment == SideAlignment.left ? bottom-bar.x : bottom-bar.x + bottom-bar.width - root.progress * bottom-bar.width);
+        background: white.mix(black, 75%);
+        width: root.progress * bottom-bar.width;
+        height: left-bar.height;
+    }
+
+    background-bar := Rectangle {
+        background: grey.transparentize(85%);
+        height: left-bar.height;
+        width: bottom-bar.width;
     }
 }
 
