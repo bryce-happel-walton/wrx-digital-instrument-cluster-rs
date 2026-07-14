@@ -296,11 +296,29 @@ pub enum Node {
     },
     Page {
         name: &'static str,
-        items: Box<[&'static Node]>,
+        items: &'static [&'static Node],
+    },
+    /// A page whose visibility is re-evaluated at runtime every time the tree is walked
+    ConditionalPage {
+        condition: fn() -> bool,
+        page: &'static Node,
     },
 }
 
 impl Node {
+    pub fn resolved(&self) -> &Node {
+        match self {
+            Node::ConditionalPage { condition, page } => {
+                if condition() {
+                    page.resolved()
+                } else {
+                    &Node::HiddenParameter
+                }
+            }
+            other => other,
+        }
+    }
+
     fn fmt_with_indent(&self, f: &mut fmt::Formatter<'_>, indent: usize) -> fmt::Result {
         let pad = "  ".repeat(indent);
 
@@ -321,6 +339,7 @@ impl Node {
                 }
                 writeln!(f, "{pad}}}")
             }
+            Node::ConditionalPage { .. } => self.resolved().fmt_with_indent(f, indent),
         }
     }
 }
@@ -352,7 +371,8 @@ pub trait ParameterStruct {
         let node = node.unwrap_or(self.get_page_layout());
         if split_path.len() != current_depth {
             if let Node::Page { name: _, items } = node {
-                for item in items {
+                for &item in *items {
+                    let item = item.resolved();
                     if let Node::Page { name, items: _ } = item {
                         if let Some(current_item) = split_path.get(current_depth + 1) {
                             if current_item == name {
@@ -440,11 +460,14 @@ macro_rules! parameter_struct {
             }
 
             fn get_page_layout(&self) -> &'static $crate::data::parameters::Node {
-                static [<$page:upper _LAYOUT>]: std::sync::OnceLock<$crate::data::parameters::Node> = std::sync::OnceLock::new();
-                [<$page:upper _LAYOUT>].get_or_init(||
-                    $crate::parameter_struct!(@node $page self| $($entries)*)
-                )
+                Self::PAGE_LAYOUT
             }
+        }
+
+        #[allow(unused)]
+        impl [<$page:camel_edge>] {
+            pub const PAGE_LAYOUT: &'static $crate::data::parameters::Node =
+                &$crate::parameter_struct!(@node $page| $($entries)*);
         }
 
         impl Default for [<$page:camel_edge>] {
@@ -455,7 +478,6 @@ macro_rules! parameter_struct {
             }
         }
     }};
-
     (@page $page:ident
         { $($params:tt)* }
         { $($inits:tt)* }
@@ -471,7 +493,21 @@ macro_rules! parameter_struct {
             $($rest)*
         );
     };
-
+    (@page $([$condition:expr])? $page:ident
+        { $($params:tt)* }
+        { $($inits:tt)* }
+        { $($defs:tt)* }
+        { $($entries:tt)* }
+        [dyn $sub_condition:expr] $sub:ident { $($inner:tt)* }, $($rest:tt)*
+    ) => {pastey::paste!{
+        $crate::parameter_struct!(@page $page
+            { $($params)* pub $sub: [<$sub:camel_edge>], }
+            { $($inits)* $sub: Default::default(), }
+            { $($defs)* $crate::parameter_struct!($([$condition])? $sub { $($inner)* }); }
+            { $($entries)* (page [dyn $sub_condition] $sub) }
+            $($rest)*
+        );
+    }};
     (@page $([$condition:expr])? $page:ident
         { $($params:tt)* }
         { $($inits:tt)* }
@@ -493,45 +529,51 @@ macro_rules! parameter_struct {
         $self.$param.set_value($from.$param.value());
         $crate::parameter_struct!(@apply $self, $from| $($rest)*)
     };
-    (@apply $self:ident, $from:ident| (page $([$condition:expr])? $sub:ident) $($rest:tt)*) => {
+    (@apply $self:ident, $from:ident| (page $([$($condition:tt)*])? $sub:ident) $($rest:tt)*) => {
         $self.$sub.apply($from.$sub);
         $crate::parameter_struct!(@apply $self, $from| $($rest)*)
     };
 
-    (@node-internal $self:ident| param [hidden] $param:ident: $ty:path) => {
+    (@node-internal param [hidden] $param:ident: $ty:path) => {
         &$crate::data::parameters::Node::HiddenParameter
     };
-    (@node-internal $self:ident| param [ro] $param:ident: $ty:path) => {
+    (@node-internal param [ro] $param:ident: $ty:path) => {
         &$crate::data::parameters::Node::ReadOnlyParameter{
             name: stringify!($param),
             ty: stringify!($ty)
         }
     };
-    (@node-internal $self:ident| param $param:ident: $ty:path) => {
+    (@node-internal param $param:ident: $ty:path) => {
         &$crate::data::parameters::Node::Parameter{
             name: stringify!($param),
             ty: stringify!($ty)
         }
     };
-    (@node-internal $self:ident| page [hidden] $sub:ident) => {
+    (@node-internal page [hidden] $sub:ident) => {
         &$crate::data::parameters::Node::HiddenParameter
     };
-    (@node-internal $self:ident| page [$sub_condition:expr] $sub:ident) => {
-        if $sub_condition {
-            $self.$sub.get_page_layout()
-        } else {
-            $crate::parameter_struct!(@node-internal $self| page [hidden] $sub)
+    (@node-internal page [dyn $sub_condition:expr] $sub:ident) => {
+        &$crate::data::parameters::Node::ConditionalPage {
+            condition: || $sub_condition,
+            page: pastey::paste!{ [<$sub:camel_edge>]::PAGE_LAYOUT },
         }
     };
-    (@node-internal $self:ident| page $sub:ident) => {
-        $self.$sub.get_page_layout()
+    (@node-internal page [$sub_condition:expr] $sub:ident) => {
+        if $sub_condition {
+            pastey::paste!{ [<$sub:camel_edge>]::PAGE_LAYOUT }
+        } else {
+            $crate::parameter_struct!(@node-internal page [hidden] $sub)
+        }
     };
-    (@node $page:ident $self:ident| $(($([$condition:expr])? $node:tt $([$permissions:tt])? $thing:ident $(: $ty:path)?))*) => {
+    (@node-internal page $sub:ident) => {
+        pastey::paste!{ [<$sub:camel_edge>]::PAGE_LAYOUT }
+    };
+    (@node $page:ident| $(($node:tt $([$($attr:tt)*])? $thing:ident $(: $ty:path)?))*) => {
         $crate::data::parameters::Node::Page{
             name: stringify!($page),
-            items: Box::new([$(
-                $crate::parameter_struct!(@node-internal $self| $node $([$condition])? $([$permissions])? $thing $(: $ty)?)
-            ),*])
+            items: &[$(
+                $crate::parameter_struct!(@node-internal $node $([$($attr)*])? $thing $(: $ty)?)
+            ),*]
         }
     };
 
@@ -547,13 +589,13 @@ macro_rules! parameter_struct {
             Err(e) => eprintln!("Failed to set {} to {:?}: {e:?}", stringify!($param), $value)
         }
     };
-    (@path-set-internal $self:ident $path:expr; $value:ident| page $([$condition:expr])? $sub:ident) => {
+    (@path-set-internal $self:ident $path:expr; $value:ident| page $([$($condition:tt)*])? $sub:ident) => {
         $self.$sub.set_by_path($path, $value);
     };
-    (@path-set $self:ident $target:expr; $path:expr; $val:ident| $(($node:tt $([$permissions:tt])? $thing: ident $(: $ty:path)?))*) => {
+    (@path-set $self:ident $target:expr; $path:expr; $val:ident| $(($node:tt $([$($attr:tt)*])? $thing: ident $(: $ty:path)?))*) => {
         match $target {
             $(stringify!($thing) => {
-                $crate::parameter_struct!(@path-set-internal $self $path; $val| $node $([$permissions])? $thing $(: $ty)?);
+                $crate::parameter_struct!(@path-set-internal $self $path; $val| $node $([$($attr)*])? $thing $(: $ty)?);
             }),*
             _ => {
                 println!("Path [{}] does not exist!", $path);
@@ -565,13 +607,13 @@ macro_rules! parameter_struct {
         let value = $self.$param.value();
         Some((serde_json::to_string(&value).unwrap(), Box::new(value)))
     }};
-    (@path-get-internal $self:ident $path:expr;| page $([$condition:expr])? $sub:ident) => {
+    (@path-get-internal $self:ident $path:expr;| page $([$($condition:tt)*])? $sub:ident) => {
         $self.$sub.get_by_path($path)
     };
-    (@path-get $self:ident $target:expr; $path:expr;| $(($node:tt $([$permissions:tt])? $thing: ident $(: $ty:path)?))*) => {
+    (@path-get $self:ident $target:expr; $path:expr;| $(($node:tt $([$($attr:tt)*])? $thing: ident $(: $ty:path)?))*) => {
         match $target {
             $(stringify!($thing) => {
-                $crate::parameter_struct!(@path-get-internal $self $path;| $node $([$permissions])? $thing $(: $ty)?)
+                $crate::parameter_struct!(@path-get-internal $self $path;| $node $([$($attr)*])? $thing $(: $ty)?)
             }),*
             _ => {
                 println!("Path [{}] does not exist!", $path);

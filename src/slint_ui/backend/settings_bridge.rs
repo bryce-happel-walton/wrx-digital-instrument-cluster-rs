@@ -236,12 +236,16 @@ fn flatten_layout(
             let child_path = format!("{path}.");
             current_depth += 1;
 
-            for item in items {
+            for &item in *items {
                 ret.extend_from_slice(
                     flatten_layout(item, &child_path, current_depth, max_depth).as_slice(),
                 );
             }
         }
+        // visibility is re-evaluated on every flatten
+        Node::ConditionalPage { .. } => ret.extend_from_slice(
+            flatten_layout(node.resolved(), current_path, current_depth, max_depth).as_slice(),
+        ),
     }
 
     ret
