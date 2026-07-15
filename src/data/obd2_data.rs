@@ -1,11 +1,6 @@
-use std::{
-    collections::BTreeMap,
-    sync::{Arc, LazyLock},
-};
+use std::collections::BTreeMap;
 
-pub(crate) static OBD_DATA: LazyLock<Arc<StaticObddata>> = crate::LazyLockDefault!();
-
-crate::parameter_struct!(StaticOBDData {
+crate::parameter_struct! {static OBD_DATA = OBDData {
     [hidden] acquired: bool = false,
 
     s1_current_data {
@@ -22,4 +17,4 @@ crate::parameter_struct!(StaticOBDData {
         [ro] supported_pids: BTreeMap<u8, bool>,
         [ro] ecu_name: String,
     },
-});
+}}

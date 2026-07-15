@@ -16,6 +16,7 @@ use crate::can::protocol::isotp::FUNCTIONAL_REQUEST_ID;
 use crate::can::protocol::isotp::parser::obd2::{OBD2Service, S1CurrentData, S9VehicleInformation};
 use crate::data::car::wrx_2018::CAN_DATA;
 use crate::data::obd2_data::OBD_DATA;
+use crate::data::parameters::{PARAMETER_STRUCTS, force_parameter_structs};
 use crate::debug::debug_entry;
 use crate::hardware::hardware_backend::{self, HardwareBackend};
 use crate::slint_ui::backend::{can_display, entry};
@@ -40,6 +41,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()
         .unwrap();
     let _guard = tokio_runtime.enter();
+
+    force_parameter_structs();
 
     let ui = entry::make_app().unwrap();
 

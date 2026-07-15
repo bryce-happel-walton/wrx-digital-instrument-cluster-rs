@@ -4,8 +4,10 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::sync::watch;
 
 use std::{
+    collections::BTreeMap,
     fmt::{self, Debug},
     ops::RangeInclusive,
+    sync::{OnceLock, RwLock},
 };
 
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -350,10 +352,20 @@ impl fmt::Display for Node {
     }
 }
 
+#[linkme::distributed_slice]
+pub(crate) static PARAMETER_STRUCT_FORCERS: [fn()];
+pub(crate) fn force_parameter_structs() {
+    for force in PARAMETER_STRUCT_FORCERS {
+        force();
+    }
+}
+
 pub trait ParameterStruct {
     fn apply(&self, from: Self)
     where
         Self: Sized;
+
+    fn name(&self) -> &'static str;
 
     fn set_by_path(&self, param_path: &str, value: &str);
 
@@ -406,6 +418,83 @@ pub trait ParameterStruct {
     }
 }
 
+pub struct ParameterStructs(
+    pub RwLock<BTreeMap<&'static str, &'static (dyn ParameterStruct + Sync)>>,
+);
+
+pub(crate) static PARAMETER_STRUCTS: ParameterStructs = ParameterStructs::new();
+
+impl ParameterStructs {
+    const fn new() -> Self {
+        Self(RwLock::new(BTreeMap::new()))
+    }
+}
+
+impl ParameterStruct for ParameterStructs {
+    fn apply(&self, _: Self)
+    where
+        Self: Sized,
+    {
+        unimplemented!()
+    }
+
+    fn name(&self) -> &'static str {
+        "ParameterStructs"
+    }
+
+    fn set_by_path(&self, param_path: &str, value: &str) {
+        let (target, path) = match param_path.split_once('.') {
+            Some((root, path)) => (root, path),
+            _ => (param_path, ""),
+        };
+
+        if let Ok(params) = self.0.read() {
+            match params.get(target) {
+                Some(st) => st.set_by_path(path, value),
+                None => println!("Path [{param_path}] does not exist!"),
+            }
+        }
+    }
+
+    fn get_by_path(&self, param_path: &str) -> Option<(String, Box<dyn std::any::Any>)> {
+        let (target, path) = match param_path.split_once('.') {
+            Some((root, path)) => (root, path),
+            _ => (param_path, ""),
+        };
+
+        if let Ok(params) = self.0.read() {
+            match params.get(target) {
+                Some(st) => st.get_by_path(path),
+                None => {
+                    println!("Path [{param_path}] does not exist!");
+                    None
+                }
+            }
+        } else {
+            None
+        }
+    }
+
+    fn get_page_layout(&self) -> &'static Node {
+        static LAYOUT: OnceLock<&'static Node> = OnceLock::new();
+
+        LAYOUT.get_or_init(|| {
+            let items: Vec<&'static Node> = self
+                .0
+                .read()
+                .unwrap()
+                .values()
+                .map(|st| st.get_page_layout())
+                .collect();
+
+            Box::leak(Box::new(Node::Page {
+                name: self.name(),
+                items: Box::leak(items.into_boxed_slice()),
+            }))
+        })
+    }
+}
+
 /// Defines a serdes capable structure with parameter fields and optional default values.
 /// Capable of having multiple pages
 /// TODO: add example (src/application/settings.rs:@Settings)
@@ -420,6 +509,31 @@ macro_rules! parameter_struct {
             $($items)*
         );
     };
+
+    (static $root:ident $([$init:expr])? = $([$condition:expr])? $page:ident { $($items:tt)* }) => {pastey::paste!{
+        pub(crate) static $root: std::sync::LazyLock<&'static [<$page:camel_edge>]> = std::sync::LazyLock::new(|| {
+            #[allow(unused_mut)]
+            let mut this = [<$page:camel_edge>]::default();
+
+            $(this = ($init)(this);)?
+
+            let ret: &'static [<$page:camel_edge>] = std::boxed::Box::leak(std::boxed::Box::new(this));
+
+            $crate::data::parameters::PARAMETER_STRUCTS.0
+                .write()
+                .unwrap()
+                .insert($crate::data::parameters::ParameterStruct::name(ret), ret);
+
+            ret
+        });
+
+        #[linkme::distributed_slice($crate::data::parameters::PARAMETER_STRUCT_FORCERS)]
+        static [<__FORCE_ $root>]: fn() = || {
+            std::sync::LazyLock::force(&$root);
+        };
+
+        $crate::parameter_struct!($([$condition])? $page { $($items)* });
+    }};
 
     (@page $([$condition:expr])? $page:ident
         { $($params:tt)* }
@@ -437,6 +551,10 @@ macro_rules! parameter_struct {
 
         #[allow(unused)]
         impl $crate::data::parameters::ParameterStruct for [<$page:camel_edge>] {
+            fn name(&self) -> &'static str {
+                stringify!([<$page:camel_edge>])
+            }
+
             fn apply(&self, from: Self) {
                 $crate::parameter_struct!(@apply self, from| $($entries)*);
             }

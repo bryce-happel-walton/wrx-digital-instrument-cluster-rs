@@ -2,7 +2,7 @@ use crate::can::can_backend::CanInterface;
 
 use clap::ArgMatches;
 
-use std::sync::{Arc, LazyLock};
+use std::sync::LazyLock;
 
 const VCAN_IF_NAME: &str = "vcan0";
 const CAN_IF_NAME: &str = "can0";
@@ -55,13 +55,8 @@ pub(crate) static BIN_ARGS: LazyLock<ArgMatches> = LazyLock::new(|| {
         .get_matches()
 });
 
-pub(crate) static GLOBAL_STATE: LazyLock<Arc<GlobalState>> = LazyLock::new(|| {
-    let ret = GlobalState::default();
-    ret.init();
-    Arc::new(ret)
-});
-
-crate::parameter_struct! {GlobalState {
+crate::parameter_struct! {
+static GLOBAL_STATE [|this: GlobalState| this.init()] = GlobalState {
     bin_args {
         fake_dev: bool = BIN_ARGS.get_flag("fakedev"),
         virtual_cluster: bool,
@@ -81,7 +76,7 @@ crate::parameter_struct! {GlobalState {
 }}
 
 impl GlobalState {
-    fn init(&self) {
+    fn init(self) -> Self {
         let virtual_cluster = {
             let ret = BIN_ARGS.get_flag("fakedev");
             #[cfg(target_os = "linux")]
@@ -137,6 +132,8 @@ impl GlobalState {
         self.bin_args.virtual_cluster.set_value(virtual_cluster);
         self.can.selected_interface.set_value(selected_interface);
         self.can.interface_path.set_value(interface_path);
+
+        self
     }
 }
 

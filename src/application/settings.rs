@@ -14,40 +14,12 @@ use std::env;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
 use std::path::PathBuf;
-use std::sync::{Arc, LazyLock};
 
 const CONFIG_NAME: &str = "settings.toml";
 const LOAD_TIMEOUT: Duration = Duration::from_secs(10);
 
-pub(crate) static SETTINGS: LazyLock<Arc<Settings>> = LazyLock::new(|| {
-    let ret = Settings::default();
-    ret.init();
-
-    tokio::spawn(async move {
-        if let Err(e) = SETTINGS.load_from_fs().await {
-            eprintln!("Failed to load user settings from fs: {e:?}");
-        }
-    });
-
-    Arc::new(ret)
-});
-
-#[derive(Debug)]
-pub enum SaveError {
-    DirError, // TODO: make proper errors
-    Error(Box<dyn std::error::Error>),
-}
-
-impl std::fmt::Display for SaveError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::DirError => write!(f, "Directory error"),
-            Self::Error(e) => write!(f, "Failed to save: {e:?}"),
-        }
-    }
-}
-
-crate::parameter_struct! {Settings {
+crate::parameter_struct! {
+static SETTINGS [|this: Settings| this.init()] = Settings {
     [hidden] loaded: bool = false,
 
     user {
@@ -235,7 +207,13 @@ impl Settings {
         self.loaded.watch()
     }
 
-    pub fn init(&self) {
+    pub fn init(self) -> Self {
+        tokio::spawn(async move {
+            if let Err(e) = SETTINGS.load_from_fs().await {
+                eprintln!("Failed to load user settings from fs: {e:?}");
+            }
+        });
+
         #[cfg(debug_assertions)]
         {
             self.developer
@@ -257,6 +235,8 @@ impl Settings {
             //     tokio::spawn(cli_mode());
             // }
         }
+
+        self
     }
 }
 
@@ -291,3 +271,18 @@ pub enum FnTriggers {
 
 ImplTriggerStruct!(PageTrigger<SettingsPageTarget>);
 ImplTriggerStruct!(FnTrigger<FnTriggers>);
+
+#[derive(Debug)]
+pub enum SaveError {
+    DirError, // TODO: make proper errors
+    Error(Box<dyn std::error::Error>),
+}
+
+impl std::fmt::Display for SaveError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::DirError => write!(f, "Directory error"),
+            Self::Error(e) => write!(f, "Failed to save: {e:?}"),
+        }
+    }
+}

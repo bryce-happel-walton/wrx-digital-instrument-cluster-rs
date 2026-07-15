@@ -1,6 +1,6 @@
 use crate::data::parameters::ParameterStruct;
 use crate::hardware::hardware_backend::{self, HARDWARE_NAVIGATION_INPUT};
-use crate::{CAN_DATA, GLOBAL_STATE, SETTINGS, SHUTDOWN_SIGNAL};
+use crate::{CAN_DATA, GLOBAL_STATE, SHUTDOWN_SIGNAL};
 
 use tokio::time::{self, Duration};
 
@@ -40,40 +40,51 @@ async fn cli_mode() {
                     break;
                 }
                 "h" | "help" => {
-                    println!();
-                    println!("h | help     => show this help menu");
+                    const W: usize = 16;
 
-                    println!("\nq | quit     => close application");
+                    println!();
+                    println!("{:<W$} => show this help menu", "h | help");
+
+                    println!("\n{:<W$} => close application", "q | quit");
 
                     println!("\nlist");
+                    println!("{:<W$} => list all registered `<Parameter>`", "    params");
                     println!(
-                        "    parameters     => list the layout of {}",
-                        stringify!(SETTINGS)
+                        "{:<W$} => list the dependencies of the crate",
+                        "    dependencies"
                     );
-                    println!("    dependencies   => list the dependencies of the crate");
 
-                    println!("\nnav up       => force ui navigation up");
-                    println!("    down     => force ui navigation down");
-                    println!("    enter    => force ui navigation enter");
-
-                    println!(
-                        "\nset_param    => set the value of any `<Parameter>` in `{}`",
-                        stringify!(SETTINGS)
-                    );
-                    println!("    usage    |  set_param <path> <value>");
-                    println!("  example    |  set_param user.general.unit_system uscs");
+                    println!("\nnav");
+                    println!("{:>W$} => force ui navigation up", "up");
+                    println!("{:>W$} => force ui navigation down", "down");
+                    println!("{:>W$} => force ui navigation enter", "enter");
 
                     println!(
-                        "\nget_param    => get the value of any `<Parameter>` in `{}`",
-                        stringify!(SETTINGS)
+                        "\n{:<W$} => set the value of any registered [`Parameter`]",
+                        "set_param"
                     );
-                    println!("    usage    |  get_param <path>");
-                    println!("  example    |  get_param user.general.unit_system");
+                    println!("{:>W$} |  set_param <path> <value>", "usage");
+                    println!(
+                        "{:>W$} |  set_param Settings.user.general.unit_system uscs",
+                        "example"
+                    );
 
-                    println!("\nset_car_data => set the value of any `<Parameter>` in `CAR_DATA`");
-                    println!("    usage    |  set_car_data <param> <value>");
-                    println!("  example    |  set_car_data engine_rpm 1234");
-                    println!("     note    |  does not update immediately due to unknown bug");
+                    println!(
+                        "\n{:<W$} => get the value of any registered [`Parameter`]",
+                        "get_param"
+                    );
+                    println!("{:>W$} |  get_param <path>", "usage");
+                    println!(
+                        "{:>W$} |  get_param Settings.user.general.unit_system",
+                        "example"
+                    );
+
+                    println!(
+                        "\n{:<W$} => set the value of any [`Parameter`] in [`CAN_DATA`]",
+                        "set_can_data"
+                    );
+                    println!("{:>W$} |  set_can_data <param> <value>", "usage");
+                    println!("{:>W$} |  set_can_data engine_rpm 1234", "example");
                     println!();
                 }
                 "nav" => {
@@ -101,8 +112,8 @@ async fn cli_mode() {
                 }
                 "list" => {
                     match *cmd_splt.get(1).unwrap_or(&"") {
-                        "parameters" => {
-                            println!("\n{}", SETTINGS.get_page_layout());
+                        "params" => {
+                            println!("{}", crate::PARAMETER_STRUCTS.get_page_layout())
                         }
                         "dependencies" => {
                             for dep in crate::application::dependencies::DEPENDENCIES.as_slice() {
@@ -115,16 +126,15 @@ async fn cli_mode() {
                 "set_param" => {
                     let param_path = *cmd_splt.get(1).unwrap_or(&"");
                     let value = *cmd_splt.get(2).unwrap_or(&"");
-                    SETTINGS.set_by_path(param_path, value);
+                    crate::PARAMETER_STRUCTS.set_by_path(param_path, value);
                 }
                 "get_param" => {
                     let param_path = *cmd_splt.get(1).unwrap_or(&"");
-                    if let Some((display_value, _)) = SETTINGS.get_by_path(param_path) {
+                    if let Some((display_value, _)) =
+                        crate::PARAMETER_STRUCTS.get_by_path(param_path)
+                    {
                         println!("{display_value}")
                     }
-                }
-                "param_layout" => {
-                    println!("\n{}", SETTINGS.get_page_layout());
                 }
                 "set_car_data" => {
                     // FIXME: if canbus and sim are both disabled, you must update multiple cardata params before the ui updates
