@@ -15,13 +15,10 @@ use crate::can::emulators::wrx_2018_emulator;
 use crate::can::protocol::isotp::FUNCTIONAL_REQUEST_ID;
 use crate::can::protocol::isotp::parser::obd2::{OBD2Service, S1CurrentData, S9VehicleInformation};
 use crate::data::car::wrx_2018::CAN_DATA;
-use crate::data::obd_data::OBD_DATA;
+use crate::data::obd2_data::OBD_DATA;
 use crate::debug::debug_entry;
 use crate::hardware::hardware_backend::{self, HardwareBackend};
-use crate::slint_ui::backend::{
-    backend_lib, can_display, car_data::wrx_2018_can, entry, hardware_bridge, lang,
-    rs_type_resolver, settings_bridge, state_bridge,
-};
+use crate::slint_ui::backend::{can_display, entry};
 
 use embedded_can::{Id, StandardId};
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, Pid, ProcessRefreshKind, RefreshKind, System};
@@ -80,7 +77,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &[
                     S1CurrentData::PIDs1,
                     S1CurrentData::PIDs2,
-                    S1CurrentData::PIDs3,
+                    // S1CurrentData::PIDs3,
                 ],
             ),
         ]
@@ -91,7 +88,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         bus.on_acquisitions_complete(|| {
-            OBD_DATA.initialized.set_value(true);
+            OBD_DATA.acquired.set_value(true);
         });
 
         let powertrain: Id = StandardId::new(0x7E0).unwrap().into();

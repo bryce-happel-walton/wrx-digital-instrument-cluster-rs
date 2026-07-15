@@ -2,7 +2,7 @@ use crate::application::settings::{FnTrigger, FnTriggers, PageTrigger, SETTINGS}
 use crate::data::parameters::{Bound, Node, ParameterStruct};
 use crate::slint_generatedApp::{
     AccessibilitySettings, App, ApplicationState, AttributionItem, DebugSettings, DerivedParamType,
-    GeneralSettings, GlobalThemeData, Performance, SBoundInt, SettingsLayout, SettingsMenuItem,
+    GeneralSettings, GlobalThemeData, Performance, SettingsLayout, SettingsMenuItem,
     SettingsMenuItemType, SystemInfo, WidgetContainerState, WidgetSettings,
 };
 
@@ -10,12 +10,12 @@ use pastey::paste;
 use slint::{ComponentHandle, Weak};
 use tokio::select;
 
-macro_rules! bind_settings {
+macro_rules! bind_parameters {
     ($({$slint_global:ident.$param:tt <=$direction:tt $root:ident.$($tail:ident).+}),+ $(,)? ) => {paste! {
         #[allow(nonstandard_style)]
-        pub fn bind_settings(handle_weak: Weak<App>) {
+        pub fn bind_parameters(handle_weak: Weak<App>) {
             if let Some(handle) = handle_weak.clone().upgrade() {
-                $(bind_settings!(@from (handle) $slint_global.$param $direction $root.$($tail).+);)+
+                $(bind_parameters!(@from (handle) $slint_global.$param $direction $root.$($tail).+);)+
 
                 let _ = slint::spawn_local(async_compat::Compat::new(async move {
                     $(
@@ -47,7 +47,7 @@ macro_rules! bind_settings {
     {@from ($handle:ident) $slint_global:ident.$param:tt | $root:ident.$($tail:ident).+} => {/* empty */};
 }
 
-bind_settings! {
+bind_parameters! {
     {ApplicationState.user_unit <=> SETTINGS.user.general.unit_system},
     {ApplicationState.running_simulation <=> SETTINGS.developer.simulation.running_simulation},
     {ApplicationState.running_can <=> SETTINGS.developer.can.running_can},
@@ -79,7 +79,7 @@ bind_settings! {
 }
 
 pub fn bridge(handle_weak: Weak<App>) {
-    bind_settings(handle_weak.clone());
+    bind_parameters(handle_weak.clone());
     if let Some(handle) = handle_weak.upgrade() {
         let ui_layout = handle.global::<SettingsLayout>();
 
@@ -146,6 +146,8 @@ pub fn bridge(handle_weak: Weak<App>) {
                 //
                 FnTriggers::OBD2CodeRead => {}
                 FnTriggers::OBD2VinRead => {}
+                //
+                FnTriggers::UDSCodeRead => {}
             }
         });
 

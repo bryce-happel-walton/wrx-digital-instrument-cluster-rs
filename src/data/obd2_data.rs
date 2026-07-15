@@ -6,7 +6,7 @@ use std::{
 pub(crate) static OBD_DATA: LazyLock<Arc<StaticObddata>> = crate::LazyLockDefault!();
 
 crate::parameter_struct!(StaticOBDData {
-    [hidden] initialized: bool = false,
+    [hidden] acquired: bool = false,
 
     s1_current_data {
         [ro] supported_pids: BTreeMap<u8, bool>,

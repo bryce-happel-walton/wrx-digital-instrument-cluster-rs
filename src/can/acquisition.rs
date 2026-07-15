@@ -41,16 +41,6 @@ impl Acquisition {
         }
     }
 
-    pub fn with_eavesdrop_grace(mut self, grace: Duration) -> Self {
-        self.eavesdrop_grace = grace;
-        self
-    }
-
-    pub fn with_retry_interval(mut self, interval: Duration) -> Self {
-        self.retry_interval = interval;
-        self
-    }
-
     pub fn matches(&self, message: &MuxedMessage) -> bool {
         (self.matcher)(message)
     }
@@ -96,7 +86,7 @@ impl Acquisition {
         payloads
             .into_iter()
             .map(|payload| {
-                let label = format!("ISOTP {service:?} 0x{:02X?}", &payload[1..]);
+                let label = format!("ISOTP {service:?} {:#02X?}", &payload[1..]);
                 let request = payload.clone();
 
                 Self::new(label, request_id, request, move |message| {

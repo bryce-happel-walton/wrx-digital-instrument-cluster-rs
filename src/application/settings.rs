@@ -122,7 +122,9 @@ crate::parameter_struct! {Settings {
             read_vin: FnTrigger = FnTrigger(FnTriggers::OBD2VinRead),
         },
 
-        uds {},
+        uds {
+            read_codes: FnTrigger = FnTrigger(FnTriggers::UDSCodeRead),
+        },
 
         ssm2 {
             // TODO: vehicle specific things should be covered by a feature config later
@@ -284,6 +286,7 @@ pub enum FnTriggers {
     NoOp,
     OBD2CodeRead,
     OBD2VinRead,
+    UDSCodeRead,
 }
 
 ImplTriggerStruct!(PageTrigger<SettingsPageTarget>);

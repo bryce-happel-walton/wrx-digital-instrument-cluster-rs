@@ -56,10 +56,6 @@ impl CanBus {
         }
     }
 
-    pub fn register_protocol(&mut self, protocol: impl CanProtocol + 'static) {
-        self.router.register(protocol);
-    }
-
     pub fn acquire(&mut self, acquisition: Acquisition) {
         self.acquisitions.push(acquisition);
     }
@@ -68,7 +64,9 @@ impl CanBus {
         self.on_acquisitions_complete = Some(Box::new(callback));
     }
 
+    #[allow(unused)]
     pub fn pending_acquisitions(&self) -> usize {
+        // TODO: add acquisition indicator on bootup
         self.acquisitions.len()
     }
 
@@ -145,7 +143,7 @@ impl CanBus {
             self.acquisitions.retain(|acquisition| {
                 if acquisition.matches(message) {
                     println!(
-                        "[bus:{bus_name}] acquired '{}' via {:?} on 0x{:03X}",
+                        "[bus:{bus_name}] acquired '{}' via {:?} on {:#03X}",
                         acquisition.label, message.owner, message.conversation_key.response_id
                     );
                     false

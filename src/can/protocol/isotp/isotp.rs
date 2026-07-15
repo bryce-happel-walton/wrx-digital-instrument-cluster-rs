@@ -86,6 +86,7 @@ impl ISOTPSeperationTime {
     }
 }
 
+#[derive(Debug)]
 pub struct ISOTPCanFrame {
     pub frame_type: ISOTPCanFrameType,
     frame: CanFrame,
@@ -224,7 +225,7 @@ impl CanProtocolDemuxer for ISOTPDemuxer {
                 .iter()
                 .any(|subsystem| subsystem.demux(normalized, &context))
             {
-                println!("[ISOTP] Unknown service 0x{service:02X}; data: 0x{data:02X?}");
+                println!("[ISOTP] Unknown service {service:#02X}; data: {data:#02X?}");
             }
         }
     }

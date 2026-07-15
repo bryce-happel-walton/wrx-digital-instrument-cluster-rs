@@ -1,5 +1,5 @@
 use crate::can::protocol::isotp::{DemuxContext, ISOTPService, isotp_subsystem};
-use crate::data::obd_data::OBD_DATA;
+use crate::data::obd2_data::OBD_DATA;
 
 use bitvec::order::Msb0;
 use bitvec::vec::BitVec;
@@ -87,6 +87,7 @@ pub enum DTCCategory {
     Undefined = 0b11,
 }
 
+#[allow(nonstandard_style)]
 pub struct OBD_DTC {
     pub category: DTCCategory,
     pub number: u16,
@@ -148,7 +149,7 @@ impl ISOTPService for OBD2Service {
             }
             other => {
                 println!(
-                    "Unimplemented OBD2 service 0x{:02X}; data: 0x{data:02X?}",
+                    "Unimplemented OBD2 service {:#02X}; data: {data:#02X?}",
                     other.clone() as u8
                 );
             }

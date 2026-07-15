@@ -43,9 +43,9 @@ pub fn update(ui: Weak<App>, frame: &impl Frame, force: bool) {
                             let left = id.as_raw() >> 16;
                             let right = id.as_raw() | 0xFFFF;
 
-                            format!("{left:04X}_{right:04X}")
+                            format!("{left:#04X}_{right:04X}")
                         }
-                        Id::Standard(id) => format!("{:03X}", id.as_raw()),
+                        Id::Standard(id) => format!("{:#03X}", id.as_raw()),
                     };
 
                     let raw: Vec<i32> = frame_data.clone().iter().map(|x| *x as i32).collect();
@@ -74,8 +74,8 @@ pub fn update(ui: Weak<App>, frame: &impl Frame, force: bool) {
                     .iter()
                     .enumerate()
                     .map(|(i, byte)| match bit_display.row_data(i) {
-                        Some(true) => format!("{byte:08b}").into(),
-                        _ => format!("{byte:02X}").into(),
+                        Some(true) => format!("{byte:#08b}").into(),
+                        _ => format!("{byte:#02X}").into(),
                     });
                 data.set_vec(Vec::from_iter(format_data));
 

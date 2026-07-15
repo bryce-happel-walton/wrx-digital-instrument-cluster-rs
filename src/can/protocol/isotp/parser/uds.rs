@@ -256,6 +256,7 @@ pub enum DataIdentifier {
     Entity = 0xF19F,
 }
 
+#[allow(nonstandard_style)]
 pub struct UDS_DTC {
     pub category: DTCCategory,
     pub number: u32,
@@ -263,6 +264,22 @@ pub struct UDS_DTC {
 
 #[derive(Debug, Clone, Copy)]
 pub struct DtcStatus(pub u8);
+
+/// Bit assignments of the ISO 14229 DTC status byte; also the bits of the
+/// status mask sent in [`UDSService::ReadDTCInformation`] requests, where a
+/// DTC matches if it has any requested bit set.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, VariantArray)]
+pub enum DtcStatusBit {
+    TestFailed = 0x01,
+    TestFailedThisOperationCycle = 0x02,
+    PendingDTC = 0x04,
+    ConfirmedDTC = 0x08,
+    TestNotCompletedSinceLastClear = 0x10,
+    TestFailedSinceLastClear = 0x20,
+    TestNotCompletedThisOperationCycle = 0x40,
+    WarningIndicatorRequested = 0x80,
+}
 
 impl ISOTPService for UDSService {
     fn service_byte(&self) -> u8 {
@@ -295,7 +312,7 @@ impl ISOTPService for UDSService {
             UDSService::RequestTransferExit => demux_request_transfer_exit(data),
             other => {
                 let sid = other.clone() as u8 + SERVICE_OFFSET;
-                println!("Unimplemented UDS service {other:?} (0x{sid:02X}); data: {data:02X?}");
+                println!("Unimplemented UDS service {other:?} ({sid:#02X}); data: {data:#02X?}");
             }
         }
     }
@@ -311,9 +328,9 @@ fn demux_negative_response(data: &[u8]) {
         [sid, nrc, ..] => {
             let service = service_name(*sid);
             if let Some(code) = UDSNegativeResponce::from_repr(*nrc) {
-                println!("UDS negative response to {service}: {code:?} (0x{nrc:02X})");
+                println!("UDS negative response to {service}: {code:?} ({nrc:#02X})");
             } else {
-                println!("UDS negative response to {service}: unknown NRC 0x{nrc:02X}");
+                println!("UDS negative response to {service}: unknown NRC {nrc:#02X}");
             }
         }
     }
@@ -343,7 +360,7 @@ fn demux_ecu_reset(data: &[u8]) {
         [reset, rest @ ..] => {
             let name = ECUResetType::from_repr(reset & !SUPPRESS_POS_RSP_BIT)
                 .map(|r| format!("{r:?}"))
-                .unwrap_or_else(|| format!("0x{reset:02X}"));
+                .unwrap_or_else(|| format!("{reset:#02X}"));
 
             if let [power_down] = rest {
                 println!("UDS ECUReset -> {name}; powerDownTime={power_down} s");
@@ -362,14 +379,12 @@ fn demux_security_access(data: &[u8]) {
             // Odd access types request a seed; even ones deliver a key.
             if level % 2 == 1 {
                 if seed.iter().all(|byte| *byte == 0) {
-                    println!(
-                        "UDS SecurityAccess level 0x{level:02X}: already unlocked (zero seed)"
-                    );
+                    println!("UDS SecurityAccess level {level:#02X}: already unlocked (zero seed)");
                 } else {
-                    println!("UDS SecurityAccess level 0x{level:02X}: seed {seed:02X?}");
+                    println!("UDS SecurityAccess level {level:#02X}: seed {seed:#02X?}");
                 }
             } else {
-                println!("UDS SecurityAccess level 0x{level:02X}: key accepted");
+                println!("UDS SecurityAccess level {level:#02X}: key accepted");
             }
         }
     }
@@ -381,7 +396,7 @@ fn demux_communication_control(data: &[u8]) {
         Some(control) => {
             let name = CommunicationControlType::from_repr(control & !SUPPRESS_POS_RSP_BIT)
                 .map(|c| format!("{c:?}"))
-                .unwrap_or_else(|| format!("0x{control:02X}"));
+                .unwrap_or_else(|| format!("{control:#02X}"));
             println!("UDS CommunicationControl -> {name}");
         }
     }
@@ -397,7 +412,7 @@ fn demux_control_dtc_settings(data: &[u8]) {
         Some(setting) => {
             let name = DTCSettingType::from_repr(setting & !SUPPRESS_POS_RSP_BIT)
                 .map(|s| format!("{s:?}"))
-                .unwrap_or_else(|| format!("0x{setting:02X}"));
+                .unwrap_or_else(|| format!("{setting:#02X}"));
             println!("UDS ControlDTCSettings -> {name}");
         }
     }
@@ -407,7 +422,7 @@ fn demux_link_control(data: &[u8]) {
     match data.first() {
         None => println!("UDS LinkControl response with no sub-function"),
         Some(sub) => println!(
-            "UDS LinkControl sub-function 0x{:02X}",
+            "UDS LinkControl sub-function {:#02X}",
             sub & !SUPPRESS_POS_RSP_BIT
         ),
     }
@@ -419,15 +434,15 @@ fn demux_authentication(data: &[u8]) {
             let task = task & !SUPPRESS_POS_RSP_BIT;
             let ret_name = AuthenticationReturn::from_repr(*ret)
                 .map(|r| format!("{r:?}"))
-                .unwrap_or_else(|| format!("0x{ret:02X}"));
+                .unwrap_or_else(|| format!("{ret:#02X}"));
 
             if rest.is_empty() {
-                println!("UDS Authentication task 0x{task:02X}: {ret_name}");
+                println!("UDS Authentication task {task:#02X}: {ret_name}");
             } else {
-                println!("UDS Authentication task 0x{task:02X}: {ret_name}; {rest:02X?}");
+                println!("UDS Authentication task {task:#02X}: {ret_name}; {rest:#02X?}");
             }
         }
-        _ => println!("UDS Authentication malformed: {data:02X?}"),
+        _ => println!("UDS Authentication malformed: {data:#02X?}"),
     }
 }
 
@@ -440,14 +455,14 @@ fn demux_read_data_by_identifier(data: &[u8]) {
                 render_bytes(value)
             );
         }
-        None => println!("UDS ReadDataByIdentifier malformed: {data:02X?}"),
+        None => println!("UDS ReadDataByIdentifier malformed: {data:#02X?}"),
     }
 }
 
 fn demux_write_data_by_identifier(data: &[u8]) {
     match split_did(data) {
         Some((did, _)) => println!("UDS WriteDataByIdentifier {}: written", did_name(did)),
-        None => println!("UDS WriteDataByIdentifier malformed: {data:02X?}"),
+        None => println!("UDS WriteDataByIdentifier malformed: {data:#02X?}"),
     }
 }
 
@@ -457,11 +472,11 @@ fn demux_dynamically_define(data: &[u8]) {
         [definition, rest @ ..] => {
             let name = DynamicDefinitionType::from_repr(definition & !SUPPRESS_POS_RSP_BIT)
                 .map(|d| format!("{d:?}"))
-                .unwrap_or_else(|| format!("0x{definition:02X}"));
+                .unwrap_or_else(|| format!("{definition:#02X}"));
 
             if let [did_hi, did_lo, ..] = rest {
                 let did = u16::from_be_bytes([*did_hi, *did_lo]);
-                println!("UDS DynamicallyDefineDataIdentifier {name}: dynamic DID 0x{did:04X}");
+                println!("UDS DynamicallyDefineDataIdentifier {name}: dynamic DID {did:#04X}");
             } else {
                 println!("UDS DynamicallyDefineDataIdentifier {name}");
             }
@@ -472,10 +487,10 @@ fn demux_dynamically_define(data: &[u8]) {
 fn demux_io_control(data: &[u8]) {
     match split_did(data) {
         Some((did, record)) => println!(
-            "UDS InputOutputControlByIdentifier {}: controlStatusRecord {record:02X?}",
+            "UDS InputOutputControlByIdentifier {}: controlStatusRecord {record:#02X?}",
             did_name(did)
         ),
-        None => println!("UDS InputOutputControlByIdentifier malformed: {data:02X?}"),
+        None => println!("UDS InputOutputControlByIdentifier malformed: {data:#02X?}"),
     }
 }
 
@@ -484,18 +499,18 @@ fn demux_routine_control(data: &[u8]) {
         [control, rid_hi, rid_lo, record @ ..] => {
             let name = RoutineControlType::from_repr(control & !SUPPRESS_POS_RSP_BIT)
                 .map(|c| format!("{c:?}"))
-                .unwrap_or_else(|| format!("0x{control:02X}"));
+                .unwrap_or_else(|| format!("{control:#02X}"));
             let rid = u16::from_be_bytes([*rid_hi, *rid_lo]);
 
             if record.is_empty() {
-                println!("UDS RoutineControl {name} routine 0x{rid:04X}");
+                println!("UDS RoutineControl {name} routine {rid:#04X}");
             } else {
                 println!(
-                    "UDS RoutineControl {name} routine 0x{rid:04X}; statusRecord {record:02X?}"
+                    "UDS RoutineControl {name} routine {rid:#04X}; statusRecord {record:#02X?}"
                 );
             }
         }
-        _ => println!("UDS RoutineControl malformed: {data:02X?}"),
+        _ => println!("UDS RoutineControl malformed: {data:#02X?}"),
     }
 }
 
@@ -509,7 +524,7 @@ fn demux_read_dtc_information(data: &[u8]) {
     let name = report_type
         .as_ref()
         .map(|r| format!("{r:?}"))
-        .unwrap_or_else(|| format!("0x{report:02X}"));
+        .unwrap_or_else(|| format!("{report:#02X}"));
 
     match report_type {
         Some(
@@ -521,11 +536,11 @@ fn demux_read_dtc_information(data: &[u8]) {
             if let [avail, format, hi, lo] = rest {
                 let count = u16::from_be_bytes([*hi, *lo]);
                 println!(
-                    "UDS ReadDTCInformation {name}: {count} DTC(s); availabilityMask={}, formatId=0x{format:02X}",
+                    "UDS ReadDTCInformation {name}: {count} DTC(s); availabilityMask={}, formatId={format:#02X}",
                     DtcStatus(*avail)
                 );
             } else {
-                println!("UDS ReadDTCInformation {name}: {rest:02X?}");
+                println!("UDS ReadDTCInformation {name}: {rest:#02X?}");
             }
         }
         Some(
@@ -534,7 +549,11 @@ fn demux_read_dtc_information(data: &[u8]) {
             | DTCReportType::ReportDTCWithPermanentStatus
             | DTCReportType::ReportMirrorMemoryDTCByStatusMask
             | DTCReportType::ReportEmissionsOBDDTCByStatusMask
-            | DTCReportType::ReportUserDefMemoryDTCByStatusMask,
+            | DTCReportType::ReportUserDefMemoryDTCByStatusMask
+            | DTCReportType::ReportFirstTestFailedDTC
+            | DTCReportType::ReportFirstConfirmedDTC
+            | DTCReportType::ReportMostRecentTestFailedDTC
+            | DTCReportType::ReportMostRecentConfirmedDTC,
         ) => {
             let Some((avail, records)) = rest.split_first() else {
                 println!("UDS ReadDTCInformation {name}: no availability mask");
@@ -552,10 +571,64 @@ fn demux_read_dtc_information(data: &[u8]) {
                 println!("  {dtc} status={}", DtcStatus(record[3]));
             }
             if !remainder.is_empty() {
-                println!("  trailing bytes: {remainder:02X?}");
+                println!("  trailing bytes: {remainder:#02X?}");
             }
         }
-        _ => println!("UDS ReadDTCInformation {name}: {rest:02X?}"),
+        Some(
+            DTCReportType::ReportDTCBySeverityMaskRecord
+            | DTCReportType::ReportSeverityInformationOfDTC,
+        ) => {
+            let Some((avail, records)) = rest.split_first() else {
+                println!("UDS ReadDTCInformation {name}: no availability mask");
+                return;
+            };
+
+            println!(
+                "UDS ReadDTCInformation {name}: availabilityMask={}",
+                DtcStatus(*avail)
+            );
+
+            let (records, remainder) = records.as_chunks::<{ UDS_DTC::SIZE + 3 }>();
+            for record in records {
+                let dtc = UDS_DTC::from([record[2], record[3], record[4]]);
+                println!(
+                    "  {dtc} severity={:#02X} functionalUnit={:#02X} status={}",
+                    record[0],
+                    record[1],
+                    DtcStatus(record[5])
+                );
+            }
+            if !remainder.is_empty() {
+                println!("  trailing bytes: {remainder:#02X?}");
+            }
+        }
+        Some(DTCReportType::ReportDTCSnapshotIdentification) => {
+            println!("UDS ReadDTCInformation {name}:");
+
+            // DTCRecord: DTC(3) snapshotRecordNumber(1)
+            let (records, remainder) = rest.as_chunks::<{ UDS_DTC::SIZE + 1 }>();
+            for record in records {
+                let dtc = UDS_DTC::from([record[0], record[1], record[2]]);
+                println!("  {dtc} snapshotRecord={:#02X}", record[3]);
+            }
+            if !remainder.is_empty() {
+                println!("  trailing bytes: {remainder:#02X?}");
+            }
+        }
+        Some(DTCReportType::ReportDTCFaultDetectionCounter) => {
+            println!("UDS ReadDTCInformation {name}:");
+
+            // DTCFaultDetectionCounterRecord: DTC(3) counter(1)
+            let (records, remainder) = rest.as_chunks::<{ UDS_DTC::SIZE + 1 }>();
+            for record in records {
+                let dtc = UDS_DTC::from([record[0], record[1], record[2]]);
+                println!("  {dtc} faultDetectionCounter={}", record[3]);
+            }
+            if !remainder.is_empty() {
+                println!("  trailing bytes: {remainder:#02X?}");
+            }
+        }
+        _ => println!("UDS ReadDTCInformation {name}: {rest:#02X?}"),
     }
 }
 
@@ -563,7 +636,7 @@ fn demux_clear_diagnostic_information(data: &[u8]) {
     if data.is_empty() {
         println!("UDS ClearDiagnosticInformation acknowledged");
     } else {
-        println!("UDS ClearDiagnosticInformation acknowledged; unexpected data {data:02X?}");
+        println!("UDS ClearDiagnosticInformation acknowledged; unexpected data {data:#02X?}");
     }
 }
 
@@ -576,7 +649,7 @@ fn demux_request_transfer(data: &[u8], label: &str) {
             let max_block = block
                 .iter()
                 .fold(0u64, |acc, byte| (acc << 8) | u64::from(*byte));
-            println!("UDS {label}: maxNumberOfBlockLength={max_block} ({block:02X?})");
+            println!("UDS {label}: maxNumberOfBlockLength={max_block} ({block:#02X?})");
         }
     }
 }
@@ -586,7 +659,7 @@ fn demux_transfer_data(data: &[u8]) {
         [] => println!("UDS TransferData response with no block sequence counter"),
         [block, rest @ ..] => {
             println!(
-                "UDS TransferData block {block}; {} byte(s): {rest:02X?}",
+                "UDS TransferData block {block}; {} byte(s): {rest:#02X?}",
                 rest.len()
             );
         }
@@ -597,7 +670,7 @@ fn demux_request_transfer_exit(data: &[u8]) {
     if data.is_empty() {
         println!("UDS RequestTransferExit acknowledged");
     } else {
-        println!("UDS RequestTransferExit acknowledged; parameterRecord {data:02X?}");
+        println!("UDS RequestTransferExit acknowledged; parameterRecord {data:#02X?}");
     }
 }
 
@@ -611,20 +684,20 @@ fn split_did(data: &[u8]) -> Option<(u16, &[u8])> {
 
 fn did_name(did: u16) -> String {
     DataIdentifier::from_repr(did)
-        .map(|identifier| format!("{identifier:?} (0x{did:04X})"))
-        .unwrap_or_else(|| format!("DID 0x{did:04X}"))
+        .map(|identifier| format!("{identifier:?} ({did:#04X})"))
+        .unwrap_or_else(|| format!("DID {did:#04X}"))
 }
 
 fn session_name(session: u8) -> String {
     DiagnosticSessionControlType::from_repr(session & !SUPPRESS_POS_RSP_BIT)
         .map(|s| format!("{s:?}"))
-        .unwrap_or_else(|| format!("0x{session:02X}"))
+        .unwrap_or_else(|| format!("{session:#02X}"))
 }
 
 fn service_name(sid: u8) -> String {
     UDSService::from_repr(sid)
         .map(|service| format!("{service:?}"))
-        .unwrap_or_else(|| format!("0x{sid:02X}"))
+        .unwrap_or_else(|| format!("{sid:#02X}"))
 }
 
 fn render_bytes(data: &[u8]) -> String {
@@ -634,9 +707,9 @@ fn render_bytes(data: &[u8]) -> String {
         .iter()
         .all(|byte| byte.is_ascii_graphic() || *byte == b' ')
     {
-        format!("\"{}\" ({data:02X?})", String::from_utf8_lossy(data))
+        format!("\"{}\" ({data:#02X?})", String::from_utf8_lossy(data))
     } else {
-        format!("{data:02X?}")
+        format!("{data:#02X?}")
     }
 }
 
@@ -673,30 +746,41 @@ impl std::fmt::Display for UDS_DTC {
 }
 
 impl DtcStatus {
-    const FLAGS: [(u8, &'static str); 8] = [
-        (0x01, "testFailed"),
-        (0x02, "testFailedThisOperationCycle"),
-        (0x04, "pendingDTC"),
-        (0x08, "confirmedDTC"),
-        (0x10, "testNotCompletedSinceLastClear"),
-        (0x20, "testFailedSinceLastClear"),
-        (0x40, "testNotCompletedThisOperationCycle"),
-        (0x80, "warningIndicatorRequested"),
-    ];
+    /// Status mask matching a DTC in any state
+    pub const ANY: Self = Self(
+        DtcStatusBit::TestFailed as u8
+            | DtcStatusBit::TestFailedThisOperationCycle as u8
+            | DtcStatusBit::PendingDTC as u8
+            | DtcStatusBit::ConfirmedDTC as u8
+            | DtcStatusBit::TestNotCompletedSinceLastClear as u8
+            | DtcStatusBit::TestFailedSinceLastClear as u8
+            | DtcStatusBit::TestNotCompletedThisOperationCycle as u8
+            | DtcStatusBit::WarningIndicatorRequested as u8,
+    );
+
+    pub fn contains(&self, bit: DtcStatusBit) -> bool {
+        self.0 & (bit as u8) != 0
+    }
+}
+
+impl From<DtcStatus> for u8 {
+    fn from(status: DtcStatus) -> u8 {
+        status.0
+    }
 }
 
 impl std::fmt::Display for DtcStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let set: Vec<&str> = Self::FLAGS
+        let set: Vec<String> = DtcStatusBit::VARIANTS
             .iter()
-            .filter(|(mask, _)| self.0 & mask != 0)
-            .map(|(_, name)| *name)
+            .filter(|bit| self.contains(**bit))
+            .map(|bit| format!("{bit:?}"))
             .collect();
 
         if set.is_empty() {
-            write!(f, "0x{:02X} (none)", self.0)
+            write!(f, "{:#02X} (none)", self.0)
         } else {
-            write!(f, "0x{:02X} [{}]", self.0, set.join(", "))
+            write!(f, "{:#02X} [{}]", self.0, set.join(", "))
         }
     }
 }
