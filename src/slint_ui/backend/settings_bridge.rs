@@ -1,3 +1,4 @@
+use crate::PARAMETER_STRUCTS;
 use crate::application::settings::{FnTrigger, FnTriggers, PageTrigger, SETTINGS};
 use crate::data::parameters::{Bound, Node, ParameterStruct};
 use crate::slint_generatedApp::{
@@ -80,12 +81,16 @@ bind_parameters! {
 
 pub fn bridge(handle_weak: Weak<App>) {
     bind_parameters(handle_weak.clone());
+
     if let Some(handle) = handle_weak.upgrade() {
         let ui_layout = handle.global::<SettingsLayout>();
+        let root = &PARAMETER_STRUCTS;
+
+        ui_layout.set_root_obj(root.to_path().into());
 
         ui_layout.on_get_page_layout(move |path| {
             let path: Vec<&str> = path.split_terminator(".").collect();
-            let (layout, current_path) = SETTINGS.unroll_path(&path, String::new(), 0, None);
+            let (layout, current_path) = root.unroll_path(&path, String::new(), 0, None);
             let ret = flatten_layout(layout, &current_path, 0, 1);
 
             ret.as_slice()[1..].into() // remove the current page as an entry
@@ -98,38 +103,33 @@ pub fn bridge(handle_weak: Weak<App>) {
         });
 
         ui_layout.on_set_by_path(move |path, value| {
-            SETTINGS
-                .resolve_node(path.as_str(), None)
-                .map(|path| SETTINGS.set_by_path(path, &value.as_str()));
+            root.resolve_node(path.as_str(), None)
+                .map(|path| root.set_by_path(path, &value.as_str()));
         });
 
         ui_layout.on_get_by_path(move |path| {
-            SETTINGS
-                .resolve_path(path.as_str())
+            root.resolve_path(path.as_str())
                 .map(|(display, _)| display)
                 .unwrap_or(String::from("error"))
                 .into()
         });
 
         ui_layout.on_get_bound_int(move |path| {
-            SETTINGS
-                .resolve_path(path.as_str())
+            root.resolve_path(path.as_str())
                 .and_then(|(_, value)| value.downcast_ref::<Bound<i32>>().copied())
                 .unwrap_or_default()
                 .into()
         });
 
         ui_layout.on_get_bool(move |path| {
-            SETTINGS
-                .resolve_path(path.as_str())
+            root.resolve_path(path.as_str())
                 .and_then(|(_, value)| value.downcast_ref::<bool>().copied())
                 .unwrap_or_default()
                 .into()
         });
 
         ui_layout.on_get_settings_special_page(move |path| {
-            SETTINGS
-                .resolve_path(path.as_str())
+            root.resolve_path(path.as_str())
                 .and_then(|(_, value)| value.downcast_ref::<PageTrigger>().copied())
                 .unwrap_or_default()
                 .into()
@@ -137,8 +137,7 @@ pub fn bridge(handle_weak: Weak<App>) {
 
         ui_layout.on_trigger_fn(move |path| {
             match Into::<FnTriggers>::into(
-                SETTINGS
-                    .resolve_path(path.as_str())
+                root.resolve_path(path.as_str())
                     .and_then(|(_, value)| value.downcast_ref::<FnTrigger>().copied())
                     .unwrap_or_default(),
             ) {
@@ -164,6 +163,8 @@ pub fn bridge(handle_weak: Weak<App>) {
         });
 
         ui_layout.on_stringify_derived_param_type(move |ty| ty.to_string().into());
+
+        ui_layout.on_relative_path(move |path| root.relative_path(path.as_str()).into());
     }
 }
 

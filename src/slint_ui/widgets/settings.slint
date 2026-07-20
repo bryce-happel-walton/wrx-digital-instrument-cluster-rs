@@ -64,6 +64,9 @@ export struct AttributionItem {
 }
 
 export global SettingsLayout {
+    in-out property <string> root-obj;
+    out property <string> root-path: relative_path("Settings");
+
     out property <SettingsPageTarget> special-page-target;
 
     public function trigger-special-page(page: SettingsPageTarget) {
@@ -84,6 +87,7 @@ export global SettingsLayout {
     pure callback get-settings-special-page(path: string) -> SettingsPageTarget;
     pure callback trigger-fn(path: string); // TODO: implement results
     pure callback get-attributions() -> [AttributionItem];
+    pure callback relative_path(path: string) -> string;
 }
 
 component DecorationBar inherits Rectangle {
@@ -355,7 +359,7 @@ component SettingsMenuLayoutComponent inherits VerticalLayout {
     out property <int> last-focus-id: page-back.focus-id;
 
     private property <[SettingsMenuItem]> items;
-    private property <string> path: "Settings";
+    private property <string> path: SettingsLayout.root-path;
     private property <string> parent-path: path;
 
     function update-layout() {
@@ -435,7 +439,7 @@ component SettingsMenuLayoutComponent inherits VerticalLayout {
         };
 
         activated => {
-            if (path == "") || (path == "Settings") {
+            if (path == "") || (path == SettingsLayout.root-path) {
                 ApplicationState.settings-menu-visible = false;
             } else {
                 root.path = root.parent-path;
@@ -468,7 +472,7 @@ component AttributionPage inherits FocusDomain {
                     spacing: 12px;
 
                     page-title := TypedSettingBar {
-                        label: "Settings.about.attributions";
+                        label: SettingsLayout.relative_path("Settings.about.attributions");
                         item: {
                             name: self.label,
                             item-type: SettingsMenuItemType.PageTitle,
@@ -481,7 +485,7 @@ component AttributionPage inherits FocusDomain {
                     AboutSlint { }
 
                     TypedSettingBar {
-                        label: "Settings.about.slint_version";
+                        label: SettingsLayout.relative_path("Settings.about.slint_version");
                         item: {
                             name: self.label,
                             param-path: self.label,

@@ -367,6 +367,19 @@ pub trait ParameterStruct {
 
     fn name(&self) -> &'static str;
 
+    fn to_path(&self) -> &'static str;
+
+    fn relative_path(&self, path: &str) -> String {
+        let root = self.to_path();
+        if path == root || path.starts_with(&format!("{root}.")) {
+            path.to_string()
+        } else if path.is_empty() {
+            root.to_string()
+        } else {
+            format!("{root}.{path}")
+        }
+    }
+
     fn set_by_path(&self, param_path: &str, value: &str);
 
     fn get_by_path(&self, param_path: &str) -> Option<(String, Box<dyn std::any::Any>)>;
@@ -440,6 +453,10 @@ impl ParameterStruct for ParameterStructs {
 
     fn name(&self) -> &'static str {
         "ParameterStructs"
+    }
+
+    fn to_path(&self) -> &'static str {
+        self.name()
     }
 
     fn set_by_path(&self, param_path: &str, value: &str) {
@@ -553,6 +570,10 @@ macro_rules! parameter_struct {
         impl $crate::data::parameters::ParameterStruct for [<$page:camel_edge>] {
             fn name(&self) -> &'static str {
                 stringify!([<$page:camel_edge>])
+            }
+
+            fn to_path(&self) -> &'static str {
+                stringify!($page)
             }
 
             fn apply(&self, from: Self) {
