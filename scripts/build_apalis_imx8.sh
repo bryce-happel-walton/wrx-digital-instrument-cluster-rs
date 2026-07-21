@@ -6,7 +6,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 LATEST_SDK=$(ls -1 /opt/wrx-cluster-rs | sort -V | tail -n1)
 SDK_SETUP="/opt/wrx-cluster-rs/${LATEST_SDK}/environment-setup-armv8a-tdx-linux"
 TARGET="aarch64-unknown-linux-gnu"
-BASE_FEATURES="apalis_imx8,wayland"
+BASE_FEATURES="apalis_imx8,kms"
 
 # Usage: ./build_apalis_imx8.sh [profile] [extra,features]
 #   profile        - debug (default), release, or any custom profile name
