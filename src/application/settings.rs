@@ -114,12 +114,21 @@ static SETTINGS [|this: Settings| this.init()] = Settings {
 
 impl Settings {
     pub fn get_config_dir() -> Result<PathBuf, Box<dyn std::error::Error>> {
-        let exe_dir = Some(env::current_exe()?.to_path_buf()).unwrap();
+        let exe_dir = env::current_exe()?.to_path_buf();
+        let exe_name = exe_dir
+            .file_name()
+            .ok_or("Failed to get executable's name")?
+            .display();
 
-        let config_dir = exe_dir.parent().unwrap().join(format!(
-            "{}-settings/",
-            exe_dir.file_name().unwrap().display()
-        ));
+        #[cfg(not(feature = "apalis_imx8"))]
+        let config_dir = exe_dir
+            .parent()
+            .ok_or("Failed to get executable's parent")?;
+        #[cfg(all(feature = "apalis_imx8"))]
+        let config_dir = PathBuf::from("/data");
+
+        let config_dir = config_dir.join(format!("{exe_name}_data/"));
+
         match fs::create_dir_all(&config_dir) {
             Err(ref e) if e.kind() == io::ErrorKind::AlreadyExists => (),
             Err(e) => return Err(e.into()),
