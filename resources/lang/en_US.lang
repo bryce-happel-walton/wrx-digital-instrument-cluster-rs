@@ -4,43 +4,58 @@ lang.test=LANG TEST
 en_US.lang=English (US)
 dev.lang=English (US) DEV
 
+ui.page_back=Back
+
 # settings
-Settings.user=User
-Settings.page_back=Back
+GlobalParameters.Settings=Settings
 
-Settings.user.general=General
-Settings.user.general.disable_hill_assist_warning=Disable Hill Assist Warning
-Settings.user.general.unit_system=Unit System
-Settings.user.general.language=Language
+GlobalParameters.Settings.user=User
 
-Settings.user.theme=Theme
-Settings.user.theme.selected_theme=Theme
+GlobalParameters.Settings.user.general=General
+GlobalParameters.Settings.user.general.disable_hill_assist_warning=Disable Hill Assist Warning
+GlobalParameters.Settings.user.general.unit_system=Unit System
+GlobalParameters.Settings.user.general.language=Language
 
-Settings.user.accessibility=Accessibility
-Settings.user.accessibility.animations_enabled=Animations Enabled
-Settings.user.accessibility.accessible_switches=Accessible Switches
-Settings.user.accessibility.selection_box_thickness=Selection Box Thickness
+GlobalParameters.Settings.user.theme=Theme
+GlobalParameters.Settings.user.theme.selected_theme=Theme
 
-Settings.developer=Developer
+GlobalParameters.Settings.user.accessibility=Accessibility
+GlobalParameters.Settings.user.accessibility.animations_enabled=Animations Enabled
+GlobalParameters.Settings.user.accessibility.accessible_switches=Accessible Switches
+GlobalParameters.Settings.user.accessibility.selection_box_thickness=Selection Box Thickness
 
-Settings.developer.debug=Debug
-Settings.developer.debug.debug_mode=Debug Mode
-Settings.developer.debug.debug_highlights=Debug Highlights
-Settings.developer.debug.debug_overlay_enabled=Debug Overlay
-Settings.developer.debug.extra_debug_info=Extra Debug Info
+GlobalParameters.Settings.developer=Developer
 
-Settings.developer.simulation=Simulation
-Settings.developer.simulation.running_simulation=Simulation Running
-Settings.developer.simulation.simulation_speed_ms=Simulation Speed (ms)
+GlobalParameters.Settings.developer.debug=Debug
+GlobalParameters.Settings.developer.debug.debug_mode=Debug Mode
+GlobalParameters.Settings.developer.debug.debug_highlights=Debug Highlights
+GlobalParameters.Settings.developer.debug.debug_overlay_enabled=Debug Overlay
+GlobalParameters.Settings.developer.debug.extra_debug_info=Extra Debug Info
 
-Settings.developer.can=Can
-Settings.developer.can.running_can=CAN Bus Running
+GlobalParameters.Settings.developer.simulation=Simulation
+GlobalParameters.Settings.developer.simulation.running_simulation=Simulation Running
+GlobalParameters.Settings.developer.simulation.simulation_speed_ms=Simulation Speed (ms)
 
-Settings.developer.hardware=Hardware
-Settings.developer.system_info=System Info
+GlobalParameters.Settings.developer.can=Can
+GlobalParameters.Settings.developer.can.running_can=CAN Bus Running
 
-Settings.about=About
-Settings.about.version=Software Version
-Settings.about.can_database_version=Database Version
-Settings.about.slint_version=Slint Version
-Settings.about.attributions=Attributions
+GlobalParameters.Settings.developer.hardware=Hardware
+GlobalParameters.Settings.developer.system_info=System Info
+
+GlobalParameters.Settings.diagnostics=Diagnostics
+
+GlobalParameters.Settings.diagnostics.obd2=OBD2
+GlobalParameters.Settings.diagnostics.obd2.read_codes=Read Codes
+GlobalParameters.Settings.diagnostics.obd2.read_vin=Read VIN
+
+GlobalParameters.Settings.diagnostics.uds=UDS
+GlobalParameters.Settings.diagnostics.uds.read_codes=Read Codes
+
+GlobalParameters.Settings.diagnostics.ssm2=SSM2
+GlobalParameters.Settings.diagnostics.ssm2.cobb=COBB
+
+GlobalParameters.Settings.about=About
+GlobalParameters.Settings.about.version=Software Version
+GlobalParameters.Settings.about.can_database_version=Database Version
+GlobalParameters.Settings.about.slint_version=Slint Version
+GlobalParameters.Settings.about.attributions=Attributions

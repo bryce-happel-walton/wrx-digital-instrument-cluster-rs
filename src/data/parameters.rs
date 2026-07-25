@@ -452,7 +452,7 @@ impl ParameterStruct for ParameterStructs {
     }
 
     fn name(&self) -> &'static str {
-        "ParameterStructs"
+        "GlobalParameters"
     }
 
     fn to_path(&self) -> &'static str {

@@ -98,7 +98,6 @@ pub fn bridge(handle_weak: Weak<App>) {
                     };
 
                     if let Some(file) = file {
-                        println!("Changed translation source: {}", selected_lang.0);
                         match translations.write() {
                             Ok(mut translations) => *translations = process_lang_file(&file.data),
                             Err(e) => {
