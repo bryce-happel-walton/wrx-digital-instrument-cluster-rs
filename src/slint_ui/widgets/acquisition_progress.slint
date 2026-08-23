@@ -1,0 +1,169 @@
+import { Label, GlobalAnimation, LangResolver } from "@lib/core.slint";
+
+export global AcquisitionProgress {
+    in property <int> queued;
+    in property <int> completed;
+    in property <int> skipped;
+    in property <int> failed;
+    in property <int> total;
+    in property <bool> complete: false;
+    in property <string> current;
+
+    // how long the finished summary stays up before the cluster moves on
+    in property <duration> hold-duration: 2s;
+    // cleared by whoever owns the hold timer, re-armed when a new batch starts
+    in-out property <bool> holding: true;
+
+    out property <int> finished: completed + skipped + failed;
+    out property <bool> running: (queued > 0) && !complete;
+    // the acquisition summary owns the widget container for as long as this holds
+    out property <bool> blocking: (total > 0) && (!complete || holding);
+
+    out property <float> completed-fraction: total > 0 ? (1.0 * completed) / total : 0;
+    out property <float> skipped-fraction: total > 0 ? (1.0 * skipped) / total : 0;
+    out property <float> failed-fraction: total > 0 ? (1.0 * failed) / total : 0;
+    out property <float> fraction: completed-fraction + skipped-fraction + failed-fraction;
+}
+
+component BarSegment inherits Rectangle {
+    in property <float> fraction;
+    in property <length> offset;
+    in property <length> track-width;
+
+    x: min(root.track-width, root.offset);
+    width: min(max(0px, root.track-width - root.offset), root.track-width * min(1.0, max(0.0, root.fraction)));
+
+    animate x, width {
+        duration: GlobalAnimation.page-duration;
+        easing: ease-in-out;
+    }
+}
+
+export component AcquisitionProgressBar inherits Rectangle {
+    in property <brush> completed-color: limegreen;
+    in property <brush> skipped-color: gray;
+    in property <brush> failed-color: red;
+
+    height: 8px;
+    background: white.transparentize(85%);
+    border-radius: self.height / 2;
+    clip: true;
+
+    i-completed := BarSegment {
+        track-width: root.width;
+        offset: 0;
+        fraction: AcquisitionProgress.completed-fraction;
+        background: root.completed-color;
+    }
+
+    i-skipped := BarSegment {
+        track-width: root.width;
+        offset: i-completed.x + i-completed.width;
+        fraction: AcquisitionProgress.skipped-fraction;
+        background: root.skipped-color;
+    }
+
+    i-failed := BarSegment {
+        track-width: root.width;
+        offset: i-skipped.x + i-skipped.width;
+        fraction: AcquisitionProgress.failed-fraction;
+        background: root.failed-color;
+    }
+}
+
+export component AcquisitionProgressWidget inherits Rectangle {
+    in property <bool> show-details: true;
+    in property <length> bar-height: 8px;
+    in property <length> font-size: 16px;
+
+    // the acquisition queue is only interesting while it has work left to report on
+    in property <bool> show-when-idle: false;
+
+    private property <string> status: AcquisitionProgress.complete
+        ? "ui.acquisition.complete"
+        : (AcquisitionProgress.current != ""
+        ? AcquisitionProgress.current
+        : (AcquisitionProgress.queued > 0 ? "ui.acquisition.waiting" : "ui.acquisition.idle"));
+
+    opacity: (AcquisitionProgress.total > 0) || root.show-when-idle ? 1 : 0;
+
+    animate opacity {
+        duration: GlobalAnimation.notification-duration;
+        easing: ease-in-out;
+    }
+
+    VerticalLayout {
+        spacing: 6px;
+
+        if root.show-details: HorizontalLayout {
+            spacing: 10px;
+
+            Label {
+                horizontal-alignment: left;
+                font-size: root.font-size;
+                text: "ui.acquisition.title";
+            }
+
+            Label {
+                horizontal-alignment: right;
+                font-size: root.font-size;
+                translate: false;
+                color: white.transparentize(30%);
+                text: AcquisitionProgress.finished + " / " + AcquisitionProgress.total;
+            }
+        }
+
+        i-bar := AcquisitionProgressBar {
+            height: root.bar-height;
+        }
+
+        if root.show-details: HorizontalLayout {
+            spacing: 10px;
+
+            i-status := Label {
+                horizontal-alignment: left;
+                overflow: elide;
+                font-size: root.font-size * 80%;
+                // acquisition labels are backend strings, everything else is a lang key
+                translate: root.status != AcquisitionProgress.current;
+                color: AcquisitionProgress.complete ? limegreen : white.transparentize(30%);
+                text: root.status;
+            }
+
+            if (AcquisitionProgress.skipped + AcquisitionProgress.failed) > 0: Label {
+                horizontal-alignment: right;
+                font-size: i-status.font-size;
+                translate: false;
+                color: AcquisitionProgress.failed > 0 ? red : gray.brighter(50%);
+                text: AcquisitionProgress.skipped + " " + LangResolver.translate("ui.acquisition.skipped") + ", " + AcquisitionProgress.failed + " " + LangResolver.translate("ui.acquisition.failed");
+            }
+        }
+    }
+}
+
+export component AcquisitionProgressDebugModule inherits VerticalLayout {
+    Text {
+        color: Colors.blanchedalmond;
+        text: "Acquisition";
+    }
+
+    Text {
+        color: white;
+        text: "queued: " + AcquisitionProgress.queued + " / " + AcquisitionProgress.total;
+    }
+
+    Text {
+        color: white;
+        text: "completed: " + AcquisitionProgress.completed + ", skipped: " + AcquisitionProgress.skipped + ", failed: " + AcquisitionProgress.failed;
+    }
+
+    Text {
+        color: white;
+        text: "current: " + (AcquisitionProgress.current != "" ? AcquisitionProgress.current : "none");
+    }
+
+    Text {
+        color: white;
+        text: "complete: " + (AcquisitionProgress.complete ? "true" : "false");
+    }
+}

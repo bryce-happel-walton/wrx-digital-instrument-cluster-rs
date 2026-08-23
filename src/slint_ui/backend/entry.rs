@@ -55,6 +55,7 @@ pub fn bridge(weak_handle: Weak<App>, hardware_backend: Arc<HardwareBackend>) {
     super::rs_type_resolver::bridge(weak_handle.clone());
     super::settings_bridge::bridge(weak_handle.clone());
     super::car_data::wrx_2018_can::bridge(weak_handle.clone());
+    super::acquisition_bridge::bridge(weak_handle.clone());
     super::hardware_bridge::bridge(weak_handle.clone(), hardware_backend.clone());
     super::lang::bridge(weak_handle.clone());
     super::backend_lib::bridge(weak_handle.clone());

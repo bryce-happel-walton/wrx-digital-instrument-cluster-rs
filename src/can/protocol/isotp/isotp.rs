@@ -121,6 +121,7 @@ struct Conversation {
     owner: Owner,
     last_activity: Instant,
     request: Option<ISOTPReassembly>,
+    request_at: Option<Instant>,
     response: Option<ISOTPReassembly>,
 }
 
@@ -130,8 +131,18 @@ impl Conversation {
             owner,
             last_activity,
             request: None,
+            request_at: None,
             response: None,
         }
+    }
+
+    fn set_request(&mut self, payload: Vec<u8>, instant: Instant) {
+        self.request = Some(ISOTPReassembly::complete(payload));
+        self.request_at = Some(instant);
+    }
+
+    fn supersedes_request(&self, instant: Instant) -> bool {
+        self.request_at.is_none_or(|held| instant >= held)
     }
 
     fn reassembly_mut(&mut self, direction: FrameDirection) -> &mut Option<ISOTPReassembly> {
@@ -458,7 +469,7 @@ impl CanProtocol for ISOTPProtocol {
                 .or_insert_with(|| Conversation::new(Owner::Us, frame.instant));
 
             if let Some(payload) = Self::single_frame_request_payload(frame) {
-                conversation.request = Some(ISOTPReassembly::complete(payload));
+                conversation.set_request(payload, frame.instant);
             }
         }
     }
@@ -503,14 +514,16 @@ impl CanProtocol for ISOTPProtocol {
                     }
                 }
                 FrameDirection::Response => {
-                    if conversation.owner == Owner::Unknown
-                        && let Some(broadcast) = &self.last_functional_broadcast
+                    if let Some(broadcast) = &self.last_functional_broadcast
                         && instant.saturating_duration_since(broadcast.instant)
                             < FUNCTIONAL_BROADCAST_TTL
+                        && conversation.supersedes_request(broadcast.instant)
                     {
-                        conversation.owner = broadcast.owner;
-                        conversation.request =
-                            Some(ISOTPReassembly::complete(broadcast.request.clone()));
+                        if conversation.owner == Owner::Unknown {
+                            conversation.owner = broadcast.owner;
+                        }
+
+                        conversation.set_request(broadcast.request.clone(), broadcast.instant);
                     }
                 }
             }
@@ -624,8 +637,7 @@ impl CanProtocol for ISOTPProtocol {
             if let RouterAction::Demux(message) = &mut action {
                 match direction {
                     FrameDirection::Request => {
-                        conversation.request =
-                            Some(ISOTPReassembly::complete(message.data.clone()));
+                        conversation.set_request(message.data.clone(), instant);
                     }
                     FrameDirection::Response => {
                         message.request = conversation
@@ -656,6 +668,7 @@ impl CanProtocol for ISOTPProtocol {
 
             if direction == FrameDirection::Request {
                 conversation.owner = Owner::Us;
+                conversation.request_at = Some(now);
             }
             conversation.last_activity = now;
             *conversation.reassembly_mut(direction) =

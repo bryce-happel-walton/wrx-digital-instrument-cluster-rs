@@ -1,4 +1,4 @@
-use super::acquisition::Acquisition;
+use super::acquisition::ACQUISITIONS;
 use super::can_backend::{CanBackend, CanFrame};
 use super::messages::wrx_2018::CanError;
 use super::protocol::isotp::ISOTPProtocol;
@@ -12,13 +12,21 @@ use std::error::Error;
 use std::time::{Duration, Instant};
 
 const EXTERNAL_PEER_ACTIVE_WINDOW: Duration = Duration::from_secs(3);
+const MAX_ACQUISITION_DEFERRAL: Duration = Duration::from_secs(2);
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
+enum PeerDeferral {
+    Idle,
+    Waiting { since: Instant },
+    Overriding,
+}
+
 pub struct PolledRequest {
     pub request_id: Id,
     pub payload: Vec<u8>,
     pub interval: Duration,
     pub last_sent: Option<Instant>,
+    gate: Option<Box<dyn Fn() -> bool + Send>>,
 }
 
 impl PolledRequest {
@@ -28,16 +36,19 @@ impl PolledRequest {
             Some(t) => now.saturating_duration_since(t) >= self.interval,
         }
     }
+
+    fn is_allowed(&self) -> bool {
+        self.gate.as_ref().is_none_or(|gate| gate())
+    }
 }
 
 pub struct CanBus {
     pub name: String,
     backend: CanBackend,
     router: ProtocolRouter,
-    acquisitions: Vec<Acquisition>,
-    on_acquisitions_complete: Option<Box<dyn FnOnce() + Send>>,
     polled: Vec<PolledRequest>,
     next_poll_idx: usize,
+    peer_deferral: PeerDeferral,
 }
 
 impl CanBus {
@@ -49,28 +60,24 @@ impl CanBus {
             name: name.into(),
             backend,
             router,
-            acquisitions: Vec::default(),
-            on_acquisitions_complete: None,
             polled: Vec::default(),
             next_poll_idx: 0,
+            peer_deferral: PeerDeferral::Idle,
         }
     }
 
-    pub fn acquire(&mut self, acquisition: Acquisition) {
-        self.acquisitions.push(acquisition);
-    }
-
-    pub fn on_acquisitions_complete(&mut self, callback: impl FnOnce() + Send + 'static) {
-        self.on_acquisitions_complete = Some(Box::new(callback));
-    }
-
     #[allow(unused)]
-    pub fn pending_acquisitions(&self) -> usize {
-        // TODO: add acquisition indicator on bootup
-        self.acquisitions.len()
+    pub fn poll(&mut self, request_id: Id, payload: impl Into<Vec<u8>>, interval: Duration) {
+        self.poll_gated(request_id, payload, interval, || true);
     }
 
-    pub fn poll(&mut self, request_id: Id, payload: impl Into<Vec<u8>>, interval: Duration) {
+    pub fn poll_gated(
+        &mut self,
+        request_id: Id,
+        payload: impl Into<Vec<u8>>,
+        interval: Duration,
+        gate: impl Fn() -> bool + Send + 'static,
+    ) {
         let payload = payload.into();
 
         self.polled.push(PolledRequest {
@@ -78,6 +85,7 @@ impl CanBus {
             payload,
             interval,
             last_sent: None,
+            gate: Some(Box::new(gate)),
         });
     }
 
@@ -137,28 +145,12 @@ impl CanBus {
         }
     }
 
-    fn match_acquisitions(&mut self, message: &MuxedMessage) {
-        if !self.acquisitions.is_empty() {
-            let bus_name = &self.name;
-            self.acquisitions.retain(|acquisition| {
-                if acquisition.matches(message) {
-                    println!(
-                        "[bus:{bus_name}] acquired '{}' via {:?} on {:#03X}",
-                        acquisition.label, message.owner, message.conversation_key.response_id
-                    );
-                    false
-                } else {
-                    true
-                }
-            });
-
-            if self.acquisitions.is_empty() {
-                println!("[bus:{}] initial acquisitions complete", self.name);
-
-                if let Some(callback) = self.on_acquisitions_complete.take() {
-                    callback();
-                }
-            }
+    fn match_acquisitions(&self, message: &MuxedMessage) {
+        for label in ACQUISITIONS.resolve(message) {
+            println!(
+                "[bus:{}] acquired '{label}' via {:?} on {:#03X}",
+                self.name, message.owner, message.conversation_key.response_id
+            );
         }
     }
 
@@ -166,6 +158,32 @@ impl CanBus {
         self.router.last_external_activity().is_some_and(|instant| {
             now.saturating_duration_since(instant) <= EXTERNAL_PEER_ACTIVE_WINDOW
         })
+    }
+
+    fn may_acquire(&mut self, now: Instant) -> bool {
+        if self.is_external_peer_active(now) {
+            match self.peer_deferral {
+                PeerDeferral::Overriding => true,
+                PeerDeferral::Waiting { since }
+                    if now.saturating_duration_since(since) >= MAX_ACQUISITION_DEFERRAL =>
+                {
+                    println!(
+                        "[bus:{}] peer still holding the bus after {MAX_ACQUISITION_DEFERRAL:?}; acquiring alongside it",
+                        self.name
+                    );
+                    self.peer_deferral = PeerDeferral::Overriding;
+                    true
+                }
+                PeerDeferral::Waiting { .. } => false,
+                PeerDeferral::Idle => {
+                    self.peer_deferral = PeerDeferral::Waiting { since: now };
+                    false
+                }
+            }
+        } else {
+            self.peer_deferral = PeerDeferral::Idle;
+            true
+        }
     }
 
     fn dispatch_outbound(&mut self) {
@@ -177,14 +195,11 @@ impl CanBus {
             }
         }
 
-        if !self.acquisitions.is_empty() {
-            if !self.is_external_peer_active(now) {
-                let due = self
-                    .acquisitions
-                    .iter_mut()
-                    .find_map(|acquisition| acquisition.due_request(now));
+        ACQUISITIONS.prune(now);
 
-                if let Some((request_id, payload)) = due {
+        if !ACQUISITIONS.is_empty() {
+            if self.may_acquire(now) {
+                if let Some((request_id, payload)) = ACQUISITIONS.due_request(now) {
                     self.send_isotp(request_id, &payload);
                 }
             }
@@ -195,13 +210,16 @@ impl CanBus {
                 let idx = (self.next_poll_idx + offset) % n;
 
                 if self.polled[idx].is_due(now) {
-                    let request_id = self.polled[idx].request_id;
-                    let payload = self.polled[idx].payload.clone();
-
                     self.polled[idx].last_sent = Some(now);
-                    self.next_poll_idx = (idx + 1) % n;
-                    self.send_isotp(request_id, &payload);
-                    break;
+
+                    if self.polled[idx].is_allowed() {
+                        let request_id = self.polled[idx].request_id;
+                        let payload = self.polled[idx].payload.clone();
+
+                        self.next_poll_idx = (idx + 1) % n;
+                        self.send_isotp(request_id, &payload);
+                        break;
+                    }
                 }
             }
         }

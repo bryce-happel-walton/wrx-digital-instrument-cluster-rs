@@ -10,6 +10,9 @@ import { PerformanceDebugModule } from "@data/performance.slint";
 import {
     WidgetContainerStateDebugModule,
 } from "@widgets/widget_container.slint";
+import {
+    AcquisitionProgressDebugModule,
+} from "@widgets/acquisition_progress.slint";
 
 export component DebugOverlay {
     x: 0;
@@ -26,7 +29,7 @@ export component DebugOverlay {
                 alignment: start;
 
                 Text {
-                    color: purple;
+                    color: Colors.purple;
                     text: "UI DEBUG";
                 }
 
@@ -41,14 +44,27 @@ export component DebugOverlay {
         Rectangle {
             background: black.transparentize(20%);
             VerticalLayout {
-                alignment: start;
+                VerticalLayout {
+                    alignment: start;
 
-                Text {
-                    color: darkviolet;
-                    text: "BACKEND DEBUG";
+                    Text {
+                        color: Colors.darkviolet;
+                        text: "BACKEND DEBUG";
+                    }
+
+                    BackendDebugModule { }
                 }
 
-                BackendDebugModule { }
+                VerticalLayout {
+                    alignment: start;
+
+                    Text {
+                        color: Colors.blanchedalmond;
+                        text: "CAN DEBUG";
+                    }
+
+                    AcquisitionProgressDebugModule { }
+                }
             }
         }
 
@@ -58,7 +74,7 @@ export component DebugOverlay {
                 alignment: start;
 
                 Text {
-                    color: yellowgreen;
+                    color: Colors.yellowgreen;
                     text: "SYSTEM DEBUG";
                 }
 
@@ -72,7 +88,7 @@ export component DebugOverlay {
                 alignment: start;
 
                 Text {
-                    color: moccasin;
+                    color: Colors.moccasin;
                     text: "PERFORMANCE DEBUG";
                 }
 

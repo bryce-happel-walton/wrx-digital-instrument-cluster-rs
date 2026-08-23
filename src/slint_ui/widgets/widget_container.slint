@@ -22,6 +22,7 @@ import { CarDisplayWidget } from "@widgets/car_display.slint";
 import { GlobalAnimation, DebugHighlight } from "@lib/core.slint";
 import { DebugInfo, DebugInfoLabel } from "../lib/core.slint";
 import { WidgetSettings } from "../lib/state.slint";
+import { AcquisitionProgress, AcquisitionProgressWidget } from "acquisition_progress.slint";
 
 export global WidgetContainerState {
     in-out property <int> current-page: 0;
@@ -113,92 +114,168 @@ export component SettingsMenuWidget inherits FocusableWidget {
 export component WidgetContainer inherits Rectangle {
     forward-focus: center-widget-container-indicator;
 
-    init => WidgetContainerState.clear-pages();
+    // the acquisition summary owns the container until it has been up long enough to read
+    private property <bool> acquiring: AcquisitionProgress.blocking;
+    private property <bool> acquisition-complete: AcquisitionProgress.complete;
+    // latched so the summary can finish fading out before the widgets come back
+    private property <bool> showing-acquisition: false;
 
-    VerticalLayout {
-        center-widget-container-indicator := FocusDomain {
-            property <int> current-page: WidgetContainerState.current-page;
-            property <length> indicator-width: self.height;
+    init => {
+        WidgetContainerState.clear-pages();
+        root.showing-acquisition = AcquisitionProgress.blocking;
+    }
 
-            height: 10%;
-            force-exit-strategy: false;
-            force-focus: true;
+    changed acquiring => {
+        if acquiring {
+            root.showing-acquisition = true;
+        }
+    }
 
-            nav-front-forward => WidgetContainerState.change-page(0);
-            nav-end-backward => WidgetContainerState.change-page(WidgetContainerState.num-pages - 1);
+    changed acquisition-complete => {
+        if !acquisition-complete { // a new batch re-arms the hold
+            AcquisitionProgress.holding = true;
+        }
+    }
 
-            HorizontalLayout {
-                alignment: center;
-                spacing: FocusState.focus-highlight-size;
-                padding: FocusState.focus-highlight-size;
+    acquisition-hold-timer := Timer {
+        interval: AcquisitionProgress.hold-duration;
+        // bound rather than started, so a container built mid-hold still counts it down
+        running: AcquisitionProgress.complete && AcquisitionProgress.holding;
 
-                private property <bool> initialized-focus: false;
+        triggered => {
+            AcquisitionProgress.holding = false;
+        }
+    }
 
-                for i in WidgetContainerState.num-pages: Rectangle {
-                    private property <bool> has-view: WidgetContainerState.current-page == i;
-                    private property <bool> domain-active: center-widget-container-indicator.domain-active;
+    widget-container-widgets := Rectangle {
+        opacity: root.acquiring ? 0 : 1;
 
-                    height: 100%;
-                    width: self.height;
-                    forward-focus: i-focus;
+        animate opacity {
+            duration: GlobalAnimation.acquisition-fade-duration;
+            easing: ease-in-out;
+        }
 
-                    function attempt-focus() {
-                        if domain-active && has-view && !i-focus.has-focus {
-                            i-focus.focus();
-                        }
-                    }
+        VerticalLayout {
+            center-widget-container-indicator := FocusDomain {
+                property <int> current-page: WidgetContainerState.current-page;
+                property <length> indicator-width: self.height;
 
-                    changed has-view => {
-                        attempt-focus();
-                    }
+                height: 10%;
+                force-exit-strategy: false;
+                force-focus: true;
 
-                    changed domain-active => {
-                        attempt-focus();
-                    }
+                nav-front-forward => WidgetContainerState.change-page(0);
+                nav-end-backward => WidgetContainerState.change-page(WidgetContainerState.num-pages - 1);
 
-                    init => {
-                        if (i == 0) && ((WidgetContainerState.current-page >= WidgetContainerState.num-pages) || (WidgetContainerState.current-page < 0)) {
-                            i-focus.focus();
-                        } else {
-                            attempt-focus();
-                        }
-                    }
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: FocusState.focus-highlight-size;
+                    padding: FocusState.focus-highlight-size;
 
-                    Text {
-                        color: white;
-                        text: i + 1;
-                    }
+                    private property <bool> initialized-focus: false;
 
-                    i-focus := ControlledFocusScope {
-                        init-focus: false;
+                    for i in WidgetContainerState.num-pages: Rectangle {
+                        private property <bool> has-view: WidgetContainerState.current-page == i;
+                        private property <bool> domain-active: center-widget-container-indicator.domain-active;
 
-                        focus-gained => {
-                            if !has-view { // prevent dirty-ing the number and causing recursion
-                                WidgetContainerState.change-page(i);
+                        height: 100%;
+                        width: self.height;
+                        forward-focus: i-focus;
+
+                        function attempt-focus() {
+                            if domain-active && has-view && !i-focus.has-focus {
+                                i-focus.focus();
                             }
                         }
 
-                        activated => WidgetContainerState.focus-page(i);
+                        changed has-view => {
+                            attempt-focus();
+                        }
+
+                        changed domain-active => {
+                            attempt-focus();
+                        }
+
+                        init => {
+                            if (i == 0) && ((WidgetContainerState.current-page >= WidgetContainerState.num-pages) || (WidgetContainerState.current-page < 0)) {
+                                i-focus.focus();
+                            } else {
+                                attempt-focus();
+                            }
+                        }
+
+                        Text {
+                            color: white;
+                            text: i + 1;
+                        }
+
+                        i-focus := ControlledFocusScope {
+                            init-focus: false;
+
+                            focus-gained => {
+                                if !has-view { // prevent dirty-ing the number and causing recursion
+                                    WidgetContainerState.change-page(i);
+                                }
+                            }
+
+                            activated => WidgetContainerState.focus-page(i);
+                        }
                     }
                 }
             }
+
+            center-widget-container-inner := Rectangle {
+                width: 80%;
+                height: 90%;
+
+                clip: true;
+
+                center-widget-container-layout := HorizontalLayout {
+                    x: (-WidgetContainerState.current-page * self.width) - (self.spacing * WidgetContainerState.current-page);
+
+                    animate x {
+                        duration: GlobalAnimation.page-duration;
+                        easing: ease-in-out;
+                    }
+
+                    @children
+                }
+            }
+        }
+    }
+
+    if root.showing-acquisition: acquisition-container := FocusDomain {
+        force-exit-strategy: false;
+        force-focus: true;
+
+        // navigating out of the summary has nowhere to go but back into it
+        nav-front-forward => acquisition-focus.focus();
+        nav-end-backward => acquisition-focus.focus();
+
+        opacity: root.acquiring ? 1 : 0;
+
+        animate opacity {
+            duration: GlobalAnimation.acquisition-fade-duration;
+            easing: ease-in-out;
         }
 
-        center-widget-container-inner := Rectangle {
-            width: 80%;
-            height: 90%;
+        changed opacity => {
+            if self.opacity == 0 { // hand the container back once the summary is gone
+                center-widget-container-indicator.no-graceful-return = true;
+                self.exit-domain();
+                root.showing-acquisition = false;
+            }
+        }
 
-            clip: true;
+        acquisition-focus := ControlledFocusScope {
+            VerticalLayout {
+                alignment: center;
+                padding-left: root.width * 10%;
+                padding-right: root.width * 10%;
 
-            center-widget-container-layout := HorizontalLayout {
-                x: (-WidgetContainerState.current-page * self.width) - (self.spacing * WidgetContainerState.current-page);
-
-                animate x {
-                    duration: GlobalAnimation.page-duration;
-                    easing: ease-in-out;
+                AcquisitionProgressWidget {
+                    show-when-idle: true;
                 }
-
-                @children
             }
         }
     }

@@ -1,6 +1,8 @@
 pub mod acquisition;
 pub mod bus;
 pub mod can_backend;
+#[cfg(debug_assertions)]
+pub mod ecu_emulator;
 pub mod protocol;
 pub mod router;
 pub mod util;

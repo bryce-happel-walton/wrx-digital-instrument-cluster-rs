@@ -8,12 +8,16 @@ mod util;
 
 use crate::application::global_state::GLOBAL_STATE;
 use crate::application::settings::SETTINGS;
-use crate::can::acquisition::Acquisition;
+use crate::can::acquisition::ACQUISITIONS;
 use crate::can::bus::CanBus;
 use crate::can::can_backend::{CanBackend, CanInterface};
+#[cfg(debug_assertions)]
+use crate::can::ecu_emulator;
 use crate::can::emulators::wrx_2018_emulator;
 use crate::can::protocol::isotp::FUNCTIONAL_REQUEST_ID;
-use crate::can::protocol::isotp::parser::obd2::{OBD2Service, S1CurrentData, S9VehicleInformation};
+use crate::can::protocol::isotp::parser::obd2::{
+    OBD2Service, S1CurrentData, S9VehicleInformation, pid_scan,
+};
 use crate::data::car::wrx_2018::CAN_DATA;
 use crate::data::obd2_data::OBD_DATA;
 use crate::data::parameters::{PARAMETER_STRUCTS, force_parameter_structs};
@@ -61,51 +65,48 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(can_backend) = can_backend {
         let mut bus = CanBus::new(GLOBAL_STATE.can.interface_path.value(), can_backend);
 
+        // has to be listening before anything asks it for data
+        #[cfg(debug_assertions)]
+        ecu_emulator::spawn();
+
+        const ACQUIRED_INFORMATION: &[S9VehicleInformation] =
+            &[S9VehicleInformation::VIN, S9VehicleInformation::ECU];
+
+        const POLLED_DATA: &[S1CurrentData] = &[
+            S1CurrentData::EngineLoad,
+            S1CurrentData::EngineSpeed,
+            S1CurrentData::ControlModuleVoltage,
+            S1CurrentData::EngineFuelRate,
+            S1CurrentData::Odometer,
+        ];
+
         let obd_functional: Id = StandardId::new(FUNCTIONAL_REQUEST_ID as u16)
             .unwrap()
             .into();
-        for acq in [
-            Acquisition::from_isotp(
-                obd_functional,
-                &OBD2Service::VehicleInformation,
-                &[
-                    S9VehicleInformation::PIDs,
-                    S9VehicleInformation::VIN,
-                    S9VehicleInformation::ECU,
-                ],
-            ),
-            Acquisition::from_isotp(
-                obd_functional,
-                &OBD2Service::CurrentData,
-                &[
-                    S1CurrentData::PIDs1,
-                    S1CurrentData::PIDs2,
-                    // S1CurrentData::PIDs3,
-                ],
-            ),
-        ]
-        .into_iter()
-        .flatten()
-        {
-            bus.acquire(acq);
-        }
 
-        bus.on_acquisitions_complete(|| {
+        ACQUISITIONS.extend(pid_scan::acquire(
+            obd_functional,
+            OBD2Service::VehicleInformation,
+            ACQUIRED_INFORMATION,
+        ));
+
+        ACQUISITIONS.extend(pid_scan::support_chain(
+            obd_functional,
+            OBD2Service::CurrentData,
+            POLLED_DATA,
+        ));
+
+        ACQUISITIONS.on_complete(|| {
             OBD_DATA.acquired.set_value(true);
         });
 
         let powertrain: Id = StandardId::new(0x7E0).unwrap().into();
-        for pid in [
-            S1CurrentData::EngineLoad as u8,
-            S1CurrentData::EngineSpeed as u8,
-            S1CurrentData::ControlModuleVoltage as u8,
-            S1CurrentData::EngineFuelRate as u8,
-            S1CurrentData::Odometer as u8,
-        ] {
-            bus.poll(
+        for &pid in POLLED_DATA {
+            bus.poll_gated(
                 powertrain,
-                vec![OBD2Service::CurrentData as u8, pid],
+                vec![OBD2Service::CurrentData as u8, pid as u8],
                 Duration::from_millis(100),
+                move || pid_scan::is_supported(OBD2Service::CurrentData, pid as u8),
             );
         }
 

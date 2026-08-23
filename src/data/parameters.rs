@@ -94,6 +94,12 @@ where
         self.0.borrow().clone()
     }
 
+    /// Reads the value in place, skipping the clone [`Self::value`] makes.
+    /// Senders block for the duration, so keep `read` short.
+    pub fn with_value<R>(&self, read: impl FnOnce(&T) -> R) -> R {
+        read(&self.0.borrow())
+    }
+
     pub fn set_value(&self, value: T) {
         self.0.send_if_modified(|current| {
             if *current != value {

@@ -6,6 +6,13 @@ dev.lang=English (US) DEV
 
 ui.page_back=Back
 
+ui.acquisition.title=Acquiring
+ui.acquisition.complete=Acquisition Complete
+ui.acquisition.waiting=Waiting For Bus
+ui.acquisition.idle=No Acquisitions
+ui.acquisition.skipped=skipped
+ui.acquisition.failed=failed
+
 # settings
 GlobalParameters.Settings=Settings
 
