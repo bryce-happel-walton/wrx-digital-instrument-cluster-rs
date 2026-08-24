@@ -168,6 +168,7 @@ component SettingBar inherits Rectangle {
 
 component TypedSettingBar inherits SettingBar {
     in property <SettingsMenuItem> item;
+    in property <string> override-text: "";
 
     private property <bool> update-displayed-value: false;
     private property <bool> readonly: item.item-type == SettingsMenuItemType.ReadOnlyParameter;
@@ -328,7 +329,11 @@ component TypedSettingBar inherits SettingBar {
         private property <bool> update <=> root.update-displayed-value;
 
         function update-current-value() {
-            self.text = RSTypeResolver.dejsonify-str(SettingsLayout.get-by-path(item.param-path));
+            if root.override-text != "" {
+                self.text = root.override-text;
+            } else {
+                self.text = RSTypeResolver.dejsonify-str(SettingsLayout.get-by-path(item.param-path));
+            }
         }
 
         init-ready => {
@@ -469,7 +474,7 @@ component AttributionPage inherits FocusDomain {
 
                 VerticalLayout {
                     alignment: center;
-                    spacing: 12px;
+                    spacing: 1px;
 
                     page-title := TypedSettingBar {
                         label: SettingsLayout.relative_path("Settings.about.attributions");
@@ -494,6 +499,19 @@ component AttributionPage inherits FocusDomain {
                             item-type: SettingsMenuItemType.ReadOnlyParameter,
                         };
                     }
+
+                    // TODO: this works, but it breaks the domain and the entire page
+                    // for i in SettingsLayout.get-attributions(): TypedSettingBar {
+                    //     label: i.name;
+                    //     override-text: i.version;
+                    //     item: {
+                    //         name: self.label,
+                    //         param-path: "Attibutions." + i.name,
+                    //         param-type: "String",
+                    //         param-type-derived: DerivedParamType.String,
+                    //         item-type: SettingsMenuItemType.ReadOnlyParameter,
+                    //     };
+                    // }
 
                     DecorationBar { }
 

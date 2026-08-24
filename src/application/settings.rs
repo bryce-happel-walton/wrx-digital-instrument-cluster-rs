@@ -107,7 +107,7 @@ static SETTINGS [|this: Settings| this.init()] = Settings {
     about {
         [ro] version: String = format!("{}", DEPENDENCIES.wrx_digital_instrument_cluster_rs),
         [ro] can_database_version: String = format!("{}", DEPENDENCIES.CAN_database),
-        [hidden] slint_version: String = format!("{}", DEPENDENCIES.slint), // hidden because it is accessed within the attributions page
+        // [hidden] slint_version: String = format!("{}", DEPENDENCIES.slint), // hidden because it is accessed within the attributions page
         attributions: PageTrigger = PageTrigger(SettingsPageTarget::Attributions),
     },
 }}
